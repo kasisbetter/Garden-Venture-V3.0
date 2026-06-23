@@ -1,0 +1,1787 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, shrink-to-fit=no">
+    <title>Garden Venture</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+    
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
+    <style>
+        :root { --hole-color: #3d2314; --top-soil: #6d4223; --ready-glow: #ffca28; --drawer-bg: #f7f0e4; }
+        * { box-sizing: border-box; }
+        html, body { width: 100%; min-height: 100vh; margin: 0; padding: 0; overflow-x: hidden; background-color: #261408; }
+        body { 
+            display: block; 
+            background-image: radial-gradient(#331c0d 25%, transparent 25%), radial-gradient(#331c0d 25%, transparent 25%); 
+            background-size: 24px 24px; 
+            background-position: 0 0, 12px 12px; 
+            font-family: 'Fredoka', sans-serif; 
+            color: #4a2c11; 
+            user-select: none; 
+            -webkit-user-select: none;
+            padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+        }
+        
+        #startMenu { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(26, 12, 4, 0.95); display: flex; flex-direction: column; align-items: center; justify-content: space-between; z-index: 5000; cursor: pointer; opacity: 1; transition: opacity 0.4s ease; }
+        .logo-wrapper { flex: 1; display: flex; align-items: center; justify-content: center; margin-top: 60px; }
+        .menu-logo { font-size: clamp(3.5rem, 12vw, 6rem); font-weight: 700; color: #ffffff; line-height: 0.9; text-shadow: 3px 3px 0 #000, -3px -3px 0 #000, 3px -3px 0 #000, -3px 3px 0 #000; animation: logoVerticalBreathe 3s ease-in-out infinite; text-align: center; }
+        .menu-logo span { color: #4caf50; display: inline-block; margin-top: 8px; }
+        .loading-section { width: 100%; display: flex; flex-direction: column; align-items: center; margin-bottom: 50px; }
+        .loading-container { width: 75%; max-width: 280px; height: 12px; background: rgba(255, 255, 255, 0.15); border-radius: 10px; overflow: hidden; box-shadow: 0 0 12px rgba(0,0,0,0.5); }
+        .loading-bar { height: 100%; width: 0%; background: linear-gradient(90deg, #4caf50, #81c784); border-radius: 10px; animation: fillProgress 4s linear forwards; }
+        .load-tip { color: rgba(255, 255, 255, 0.7); font-size: 13px; font-weight: 600; margin-top: 14px; letter-spacing: 0.5px; }
+        
+        #gameContent { display: none; width: 94%; max-width: 460px; margin: 15px auto; position: relative; padding: 10px 10px 160px 10px; background: rgba(38, 20, 8, 0.6); border: 4px solid #3d2314; border-radius: 28px; box-shadow: 0 12px 36px rgba(0,0,0,0.5); transition: transform 0.3s; }
+        .global-server-banner { display: none; background: linear-gradient(135deg, #ef4444, #dc2626); border: 3px solid #ffca28; padding: 12px; border-radius: 16px; margin-bottom: 15px; font-weight: 700; font-size: 13px; color: #fff; text-align: left; line-height: 1.4; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        
+        .stats-bar { display: flex; justify-content: space-between; align-items: center; background: var(--drawer-bg); border: 3px solid #d4beaa; padding: 10px 12px; border-radius: 20px; box-shadow: 0 8px 24px rgba(0,0,0,0.3); margin-bottom: 12px; width: 100%; gap: 10px; flex-wrap: wrap; }
+        .money { color: #1e5e22; font-size: 22px; text-shadow: 0 1px 1px rgba(255,255,255,0.5); }
+        .action-btns { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; justify-content: flex-end; }
+        
+        .btn { font-family: 'Fredoka', sans-serif; padding: 8px 10px; border: none; border-radius: 12px; font-weight: 700; cursor: pointer; transition: transform 0.2s ease; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-size: 13px; white-space: nowrap; flex-shrink: 0; pointer-events: auto !important; }
+        .btn:active { transform: scale(0.9); }
+        .btn-main { background: #2196f3; color: white; }
+        .btn-merchant { background: #9c27b0; color: white; }
+        .btn-buy { background: #4caf50; color: white; }
+        .btn-buy:disabled { background: #cbd5e1; color: #94a3b8; cursor: not-allowed; box-shadow: none; transform: none; }
+        .btn-close { background: #ff5252; color: white; margin-top: 20px; width: 100%; }
+        .btn-shovel { background: #78909c; color: white; }
+        .btn-shovel.active { background: #d32f2f; box-shadow: 0 0 12px #f44336; }
+
+        #weatherCornerHUD { width: 100%; background: rgba(26, 12, 4, 0.95); border: 2px solid #ffca28; padding: 8px 16px; border-radius: 18px; box-shadow: 0 6px 14px rgba(0,0,0,0.3); font-weight: 700; color: #fffbf5; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; cursor: pointer; z-index: 5000; position: relative; }
+        #weatherTitleSubNode { font-size: 13px; color: #ffca28; display: flex; align-items: center; gap: 6px; }
+        #weatherTimerSubNode { font-size: 12px; opacity: 0.9; font-family: monospace; }
+
+        #weatherVisualEffectsOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 4400; overflow: hidden; transition: background-color 1s ease; }
+        .weather-particle { position: absolute; font-size: 28px; pointer-events: none; animation: vfxFall linear infinite; }
+
+        #adminFloatingTriggerBtn { position: fixed; bottom: 12px; right: 12px; background: #cb2d3e; color: #fffbf5; border: 2px solid #fff; border-radius: 50%; width: 46px; height: 44px; display: flex; align-items: center; justify-content: center; font-size: 16px; font-weight: 700; cursor: pointer; z-index: 4900; box-shadow: 0 6px 16px rgba(0,0,0,0.4); transition: transform 0.2s; }
+        #adminFloatingTriggerBtn:active { transform: scale(0.9); }
+
+        #farmWrapper { width: 100%; position: relative; border-radius: 24px; min-height: 380px; }
+        .field-page { width: 100%; display: none; padding: 2px; position: relative; animation: fadeIn 0.3s ease; }
+        .field-page.active { display: block; }
+        .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; width: 100%; }
+        .field-lock-mask { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(38, 20, 8, 0.85); z-index: 10; border-radius: 24px; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; border: 4px dashed #7a583a; }
+        .lock-title { color: #fffbf5; font-size: 18px; font-weight: 700; margin-bottom: 10px; text-shadow: 0 2px 4px #000; }
+        .field-navigation-panel { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; background: rgba(255,255,255,0.05); padding: 6px; border-radius: 16px; width: 100%; }
+        .nav-field-label { color: #fffbf5; font-weight: 700; font-size: 16px; }
+
+        .tile { aspect-ratio: 1; background: var(--hole-color); border: 4px solid #4caf50; border-radius: 24px; position: relative; cursor: pointer; box-shadow: inset 0 8px 16px rgba(0,0,0,0.5); transition: transform 0.2s ease, border-color 0.25s ease; will-change: transform; pointer-events: auto !important; }
+        .tile * { pointer-events: none !important; }
+        .tile:hover { border-color: var(--ready-glow); background-color: #442819; }
+        .tile:active { transform: scale(0.92); }
+        .plant-element { position: absolute; left: 50%; bottom: 20px; z-index: 2; font-size: 2.8rem; transition: transform 0.25s ease; pointer-events: none; transform-origin: bottom center; }
+        .foreground-soil { position: absolute; bottom: 0; left: 0; width: 100%; height: 32%; background: var(--top-soil); border-top: 2px solid #422613; z-index: 3; pointer-events: none; border-radius: 0 0 20px 20px; }
+        .timer { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 10px; background: rgba(0,0,0,0.8); color: white; padding: 3px 8px; border-radius: 20px; z-index: 4; font-weight: 700; white-space: nowrap; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .ready { border-color: var(--ready-glow); animation: readyPulse 2s infinite ease-in-out; }
+        .ready .timer { background: #ffc107; color: #000; }
+        
+        .vine-garden-view { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 260px; background: linear-gradient(180deg, #f3eade, #e5d4c0); border-radius: 24px; border: 4px solid #fff; box-shadow: inset 0 4px 12px rgba(0,0,0,0.15); margin: 15px 0; position: relative; overflow: hidden; }
+        .view-vine { font-size: 6.5rem; position: absolute; bottom: 20px; left: 50%; transform: translateX(-50%); transition: transform 0.3s ease; }
+        .interactive-fruit { font-size: 2.4rem; position: absolute; cursor: pointer; transition: transform 0.2s ease; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.2)); animation: fruitFloat 2.5s infinite ease-in-out; pointer-events: auto !important; }
+        .interactive-fruit:active { transform: scale(0.8); }
+        .fruit-weight-label { position: absolute; font-size: 10px; font-weight: 700; background: rgba(0,0,0,0.75); color: #fff; padding: 2px 6px; border-radius: 8px; white-space: nowrap; pointer-events: none; transform: translate(-25%, -20px); }
+        .floating-text { position: absolute; color: #ffeb3b; font-size: 24px; font-weight: 700; text-shadow: -2px -2px 0 #000, 2px -2px 0 #000; pointer-events: none; z-index: 99999; animation: popFloatUp 0.8s ease forwards; }
+        
+        #notification { position: fixed; top: -150px; left: 0; right: 0; margin: 0 auto; width: 90%; max-width: 460px; background: #5c3818; color: #fffbf5; padding: 12px 24px; border-radius: 16px; font-weight: 700; font-size: 13px; box-shadow: 0 8px 24px rgba(0,0,0,0.4); border: 3px solid #d4beaa; transition: top 0.4s ease; z-index: 10000; text-align: center; cursor: pointer; }
+        #notification.show { top: 20px; }
+
+        .drawer { display: none; position: fixed; bottom: 0; left: 0; right: 0; margin: 0 auto; width: 100%; max-width: 460px; height: 220px; background: var(--drawer-bg); border-radius: 24px 24px 0 0; box-shadow: 0 -10px 40px rgba(0,0,0,0.6); transform: translateY(calc(100% - 52px)); transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); z-index: 100; border: 3px solid #d4beaa; border-bottom: none; }
+        .drawer.open { transform: translateY(0) !important; }
+        .drawer-handle { width: 100%; height: 52px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; color: #7a583a; }
+        .drawer-pill { width: 44px; height: 6px; background: #cbd5e1; border-radius: 4px; margin-bottom: 4px; }
+        .inventory-bar { display: flex; justify-content: flex-start; gap: 14px; padding: 10px 15px; height: calc(100% - 52px); align-items: center; overflow-x: auto; -webkit-overflow-scrolling: touch; width: 100%; }
+        
+        .inv-item { background: #fffbf5; border: 3px solid #e1d3c1; padding: 12px; border-radius: 18px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; min-width: 85px; flex: 1; max-width: 110px; transition: transform 0.2s ease, border-color 0.15s; color: #4a2c11; font-size: 11px; pointer-events: auto !important; }
+        .inv-item * { pointer-events: none !important; }
+        .inv-item.selected { border-color: #2196f3; background: #e3f2fd; }
+        .inv-item span { margin: 2px 0; line-height: 1.1; }
+        .empty-drawer-msg { color: #7f8c8d; font-weight: 600; width: 100%; text-align: center; padding: 15px 0; font-size: 14px; }
+        
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); align-items: center; justify-content: center; z-index: 5500; opacity: 0; transition: opacity 0.2s ease; }
+        .modal-content { background: var(--drawer-bg); padding: 24px; border-radius: 28px; max-width: 360px; width: 92%; border: 4px solid #d4beaa; position: relative; transform: scale(0.8); transition: transform 0.25s ease; max-height: 80vh; display: flex; flex-direction: column; color: #4a2c11; overflow: hidden; pointer-events: auto !important; }
+        
+        #shopItems { overflow-y: auto; padding-right: 5px; flex-grow: 1; min-height: 0; }
+        .shop-item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-bottom: 2px dashed #d4beaa; }
+        .shop-details { text-align: left; }
+        .shop-details div { font-weight: 700; display: flex; align-items: center; font-size: 15px; }
+        .shop-details span { font-size: 12px; color: #7a583a; }
+        .info-btn { font-size: 16px; margin-left: 6px; cursor: pointer; display: inline-block; pointer-events: auto !important; }
+        .close-x { position: absolute; top: 18px; right: 20px; font-size: 20px; font-weight: bold; color: #999; cursor: pointer; pointer-events: auto !important; }
+        
+        .tutorial-overlay-pane { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(14, 7, 3, 0.85); z-index: 99999; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; transition: background 0.4s ease; }
+        .tutorial-overlay-pane.interactive-mode { background: rgba(14, 7, 3, 0.15); pointer-events: none; justify-content: flex-start; }
+        .tutorial-overlay-pane.interactive-mode .tutorial-speech-card { pointer-events: auto; margin-top: 60px; }
+        .tutorial-speech-card { background: var(--drawer-bg); border: 5px solid #9c27b0; border-radius: 28px; padding: 25px; width: 100%; max-width: 400px; box-shadow: 0 15px 35px rgba(0,0,0,0.6); text-align: center; pointer-events: auto; transition: transform 0.5s cubic-bezier(0.25, 1, 0.5, 1), margin-top 0.5s ease; }
+        
+        .admin-section-header { font-size: 12px; font-weight: 700; color: #7f8c8d; text-transform: uppercase; margin-top: 12px; margin-bottom: 4px; text-align: left; border-bottom: 1px solid #cbd5e1; padding-bottom: 2px; }
+        .reminder-checkbox-row { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: 13px; font-weight: 600; color: #5c3818; margin-top: 12px; cursor: pointer; }
+        .weather-sandbox-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 12px; }
+
+        .npc-bubble { background: #ebdccb; padding: 12px 20px; border-radius: 20px; font-weight: 600; color: #3d2314; margin: 12px 0 20px; text-align: left; border-left: 6px solid #9c27b0; line-height: 1.4; font-size: 15px; }
+        .npc-choice-btn { background: #ebdccb; color: #4a2c11; width: 100%; padding: 12px; margin-bottom: 8px; border-radius: 12px; border: none; font-weight: 700; text-align: left; cursor: pointer; transition: background 0.15s ease; border: 2px solid #d4beaa; font-size: 15px; }
+
+        @media (min-width: 768px) {
+            #gameContent { max-width: 720px; padding-bottom: 190px; }
+            .grid { gap: 16px; }
+            .drawer { max-width: 720px; }
+        }
+
+        @media (min-width: 1024px) {
+            #gameContent { max-width: 800px; margin-top: 40px; padding: 20px 20px 180px 20px; border-radius: 36px; border-width: 6px; }
+            .drawer { max-width: 800px; height: 260px; transform: translateY(calc(100% - 60px)); border-width: 6px; }
+            .drawer-handle { height: 60px; font-size: 16px; }
+            .inventory-bar { height: calc(100% - 60px); gap: 20px; padding: 15px 25px; }
+            .inv-item { min-width: 110px; max-width: 140px; font-size: 14px; padding: 16px; }
+            .stats-bar { padding: 15px 20px; border-radius: 24px; }
+            .money { font-size: 32px; }
+            .btn { padding: 12px 16px; font-size: 16px; border-radius: 16px; }
+            .nav-field-label { font-size: 20px; }
+            .tile { border-width: 6px; }
+            .grid { gap: 20px; }
+        }
+
+        @keyframes logoVerticalBreathe { 0%, 100% { transform: translateY(0px) scale(1); } 50% { transform: translateY(-12px) scale(1.03); } }
+        @keyframes readyPulse { 0%, 100% { box-shadow: 0 0 20px rgba(255,202,40,0.45); } 50% { box-shadow: 0 0 32px rgba(255,202,40,0.85); } }
+        @keyframes fruitFloat { 0%, 100% { transform: translateY(0px); } 50% { transform: translateY(-5px); } }
+        
+        @keyframes vfxFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 0; }
+            10% { opacity: 0.9; }
+            90% { opacity: 0.9; }
+            100% { transform: translateY(115vh) rotate(360deg); opacity: 0; }
+        }
+        @keyframes popFloatUp {
+            0% { transform: translate(-50%, 0) scale(0.7); opacity: 0; }
+            20% { opacity: 1; transform: translate(-50%, -15px) scale(1.1); }
+            100% { transform: translate(-50%, -55px) scale(1); opacity: 0; }
+        }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fillProgress { from { width: 0%; } to { width: 100%; } }
+    </style>
+</head>
+<body>
+
+    <div id="debugError" style="position:fixed; top:0; left:0; width:100%; background:red; color:white; z-index:99999; display:none; font-size:11px; padding:4px;"></div>
+    <div id="weatherVisualEffectsOverlay"></div>
+
+    <div id="startMenu" onclick="startGame()">
+        <div class="logo-wrapper">
+            <div class="menu-logo">
+                GARDEN<br><span>VENTURE</span>
+                <div style="font-size: 16px; color: #ffeb3b; margin-top: 10px; font-weight: 700; text-shadow: 2px 2px 0 #000, -1px -1px 0 #000; letter-spacing: 1px; animation: none;">⛈️V1.2: Weather and Wonders⛈️</div>
+            </div>
+        </div>
+        <div class="loading-section">
+            <div class="loading-container"><div class="loading-bar"></div></div>
+            <div class="load-tip">TIP: Tap to Play Cozy Audio!</div>
+        </div>
+    </div>
+
+    <div id="notification"></div>
+
+    <div id="gameContent">
+        <div id="globalMarqueeBanner" class="global-server-banner"></div>
+        
+        <div class="stats-bar">
+            <div class="money">💰 $<span id="money" style="font-weight:700">50</span></div>
+            <div class="action-btns">
+                <button class="btn btn-shovel" id="shovelModeToggleBtn" onclick="toggleShovelDemolitionMode()">⛏️ Shovel</button>
+                <button class="btn" id="notesOpenBtn" onclick="togglePatchNotesModal(true)">📋 Notes</button>
+                <button class="btn btn-merchant" id="merchantOpenBtn" onclick="toggleMerchant(true)">🤠 Sell</button>
+                <button class="btn btn-main" id="shopOpenBtn" onclick="toggleShop(true)">🛒 Shop</button>
+                <button class="btn btn-close" style="margin:0; background:#475569;" onclick="toggleSettingsModal(true)">⚙️ Settings</button>
+            </div>
+        </div>
+
+        <div id="weatherCornerHUD" onclick="displayWeatherPopupData()">
+            <div id="weatherTitleSubNode">☀️ Clear Skies</div>
+            <div id="weatherTimerSubNode">05:00</div>
+        </div>
+
+        <div id="adminFloatingTriggerBtn" onclick="triggerStandaloneAdminLoginPrompt()">⚙️</div>
+
+        <div class="field-navigation-panel">
+            <button class="btn btn-main" id="navigationPrevBtn" onclick="scrollField(-1)">◀ Prev</button>
+            <div class="nav-field-label" id="currentFieldIndicator">Field 1 / 3</div>
+            <button class="btn btn-main" id="navigationNextBtn" onclick="scrollField(1)">Next ▶</button>
+        </div>
+
+        <div id="farmWrapper">
+            <div class="field-page" id="fieldPage0"><div class="grid" id="farmField0"></div></div>
+            <div class="field-page" id="fieldPage1">
+                <div class="field-lock-mask" id="lockMask1">
+                    <div class="lock-title">🚜 Field Extension #2</div>
+                    <button class="btn btn-buy" onclick="purchaseFieldExpansion(1, 1000000)">Unlock Expansion ($1.0M)</button>
+                </div>
+                <div class="grid" id="farmField1"></div>
+            </div>
+            <div class="field-page" id="fieldPage2">
+                <div class="field-lock-mask" id="lockMask2">
+                    <div class="lock-title">🌌 Cosmic Acre #3</div>
+                    <button class="btn btn-buy" onclick="purchaseFieldExpansion(2, 5000000)">Unlock Expansion ($5.0M)</button>
+                </div>
+                <div class="grid" id="farmField2"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="drawer" id="inventoryDrawer">
+        <div class="drawer-handle" id="drawerHandleBtn" onclick="toggleDrawer()">
+            <div class="drawer-pill"></div>
+            <span id="handleText">Push Down Seeds Bag</span>
+        </div>
+        <div class="inventory-bar" id="inventoryContainer"></div>
+    </div>
+
+    <div class="modal" id="settingsModal" style="z-index: 8000;">
+        <div class="modal-content">
+            <div class="close-x" onclick="toggleSettingsModal(false)">✖</div>
+            <h3 style="margin-top:0; color:#4a2c11;">Game Settings</h3>
+            <button class="btn btn-close" style="margin-top: 15px;" onclick="initiateWipeSequence()">⚠️ Erase Save Data</button>
+        </div>
+    </div>
+
+    <div class="modal" id="wipeModal" style="z-index: 8500;">
+        <div class="modal-content" style="text-align:center;">
+            <div class="close-x" onclick="toggleModalEngine(document.getElementById('wipeModal'), false)">✖</div>
+            <h3 style="margin-top:0; color:#dc2626;">NUCLEAR WIPE</h3>
+            <p style="font-size:13px; font-weight:600; color:#7a583a; margin-bottom:12px;">This will completely erase ALL money, crops, and land. Type <b>Delete My Garden</b> below to confirm.</p>
+            <input type="text" id="wipeAuthInput" placeholder="Delete My Garden" style="width:100%; padding:12px; border-radius:12px; border:2px solid #d4beaa; text-align:center; font-size:16px; margin-bottom:15px; outline:none; font-family:inherit; font-weight:700;">
+            <button class="btn btn-close" style="width:100%; padding:10px 0; margin-top: 0;" onclick="confirmWipeSequence()">PERMANENTLY DELETE</button>
+        </div>
+    </div>
+
+    <div class="modal" id="patchNotesModal">
+        <div class="modal-content">
+            <div class="close-x" onclick="togglePatchNotesModal(false)">✖</div>
+            <h3 style="margin-top:0; color:#9c27b0; font-size:22px;">Game Patch Logs</h3>
+            <div style="text-align:left; max-height:150px; overflow-y:auto; font-size:13px; background:#fffbf5; padding:12px; border-radius:14px; border:2px inset #d4beaa; line-height:1.4; font-weight:600; color:#5c3818;">
+                • Build Version 2.8.5 True Stability Setup.<br>
+                • Restored formatting logic block rules resolving the button touch lockups.<br>
+                • Background audio context dynamically pauses when minimized.<br>
+                • Added Admin Security Execution Scope modes (Local vs Global).<br>
+                • ⛈️ Implemented custom pulsing Auras for Astral & Transcendent drops.
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="adminAuthModal">
+        <div class="modal-content" style="max-width:320px; text-align:center;">
+            <div class="close-x" onclick="toggleModalEngine(document.getElementById('adminAuthModal'), false)">✖</div>
+            <h3 style="margin-top:0; color:#dc2626; font-size:22px;">🔐 Terminal Access</h3>
+            <p style="font-size:13px; font-weight:600; color:#7a583a; margin-bottom:12px;">Enter Admin Override Pin:</p>
+            <input type="password" id="adminPinInput" style="width:100%; padding:12px; border-radius:12px; border:2px solid #d4beaa; text-align:center; font-size:20px; margin-bottom:15px; outline:none; font-family:inherit; font-weight:700;">
+            <div class="btn btn-main" style="background:#dc2626; width:100%; padding:10px 0; text-align: center;" onclick="submitAdminPinCode()">Submit PIN</div>
+        </div>
+    </div>
+
+    <div class="modal" id="adminStandaloneModalBox">
+        <div class="modal-content" style="max-width:380px; max-height:85vh; overflow-y:auto;">
+            <div class="close-x" onclick="toggleModalEngine(document.getElementById('adminStandaloneModalBox'), false)">✖</div>
+            <h3 style="margin-top:0; color:#dc2626; font-size:20px;">🛠️ Command Center Terminal</h3>
+            
+            <div style="background: #eff6ff; border: 2px solid #3b82f6; border-radius: 8px; padding: 8px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+                <span style="color: #1e3a8a; font-weight: 700; font-size: 13px;">📡 Execution Scope:</span>
+                <select id="adminScopeSelector" style="border-radius: 4px; border: 1px solid #93c5fd; padding: 4px; font-family: inherit; font-weight: 600; color: #1e3a8a; outline: none; background: #fff;">
+                    <option value="local">Just Me (Local)</option>
+                    <option value="global" selected>Everybody (Global)</option>
+                </select>
+            </div>
+
+            <div class="admin-section-header">Personal Wallet Control (Local Only)</div>
+            <button class="btn btn-main" style="background:#dc2626; width:100%; margin:0 0 6px 0;" onclick="triggerAdminClearWallet()">📉 Empty My Wallet to $0</button>
+
+            <div class="admin-section-header">Farm Controls</div>
+            <button class="btn btn-main" style="background:#8b5cf6; width:100%; margin:0 0 6px 0;" onclick="triggerAdminGlobalInstantGrow()">⏳ Instantly Grow All Crops</button>
+
+            <div class="admin-section-header">Broadcast System</div>
+            <textarea id="ownerGlobalMessageTextArea" class="dev-textarea" placeholder="Write global bulletin text here..." style="width:100%; padding:8px; border-radius:8px; border:1px solid #cbd5e1;"></textarea>
+            <button class="btn btn-main" onclick="broadcastOwnerAnnouncementToServer()" style="width:100%; margin-top:4px;">📢 Dispatch Global Marquee</button>
+            
+            <div class="admin-section-header">Economy Injections</div>
+            <div style="display:flex; gap:4px;">
+                <button class="btn btn-buy" style="flex:1; margin:0;" onclick="triggerAdminGlobalCoinGift(5000)">💵 Gift $5k</button>
+                <button class="btn btn-buy" style="flex:1; margin:0; background:#1e3a8a;" onclick="triggerAdminGlobalCoinGift(100000)">💳 Gift $100k</button>
+            </div>
+
+            <div class="admin-section-header">Marketplace Power Overrides</div>
+            <button class="btn btn-main" style="background:#059669; width:100%; margin:0 0 6px 0;" onclick="triggerAdminGlobalRestock()">⚡ Global Server Stock Refill</button>
+            
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+                <div style="font-size: 11px; font-weight:700; color:#7f8c8d; text-align:left;">SELECT SPECIFIC CROP REFILL:</div>
+                <select id="adminRestockAmountSelector" style="border-radius: 4px; border: 1px solid #cbd5e1; padding: 2px 4px; font-family: inherit; font-size: 11px; font-weight: 600; outline: none; color: #334155; background: #fff;" onchange="refreshAdminSeedButtons()">
+                    <option value="1">+1</option>
+                    <option value="10" selected>+10</option>
+                    <option value="50">+50</option>
+                    <option value="100">+100</option>
+                </select>
+            </div>
+            <div id="adminSeedControls" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; min-height: 160px; max-height: 240px; overflow-y: auto; padding: 6px; border: 2px inset #d4beaa; border-radius: 12px; background: #fffbf5;"></div>
+
+            <div class="admin-section-header">Climate Stacking Sandbox</div>
+            <div class="weather-sandbox-grid" style="margin-top:4px;">
+                <button class="btn" id="toggleWeatherBtn-nature" style="background:#65a30d; margin:0;" onclick="toggleAdminWeatherStackState('nature')">🌿 Blessing</button>
+                <button class="btn" id="toggleWeatherBtn-starfall" style="background:#2563eb; margin:0;" onclick="toggleAdminWeatherStackState('starfall')">🌌 Starfall</button>
+                <button class="btn" id="toggleWeatherBtn-honey" style="background:#d97706; margin:0;" onclick="toggleAdminWeatherStackState('honey')">🍯 Honey</button>
+                <button class="btn" id="toggleWeatherBtn-rainbow" style="background:#9333ea; margin:0;" onclick="toggleAdminWeatherStackState('rainbow')">🌈 Rainbow</button>
+                <button class="btn" id="toggleWeatherBtn-crystal" style="background:#dc2626; margin:0; grid-column: span 2;" onclick="toggleAdminWeatherStackState('crystal')">💎 Crystal Storm</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="adminActionConfirmationWarningModal" style="z-index:110000;">
+        <div class="modal-content" style="max-width:340px; text-align:center; padding:20px;">
+            <h3 style="margin-top:0; color:#dc2626;">⚠️ Confirm Global Action</h3>
+            <p style="font-size:14px; font-weight:600; color:#475569; line-height:1.4;">WARNING! You are in Global Scope mode. Doing this will trigger this for Everybody playing right now. Do you wish to continue?</p>
+            <div class="reminder-checkbox-row" onclick="toggleAdminWarningSuppressionCheckbox()">
+                <input type="checkbox" id="suppressAdminWarningCheckboxNode" style="pointer-events:none;">
+                <label style="color:#1e293b; font-size:12px;">Don't show this message again</label>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-main" style="background:#dc2626; flex:1; margin:0;" onclick="executeConfirmedAdminAuthorityProxy()">Yes, Continue</button>
+                <button class="btn btn-merchant" style="background:#cbd5e1; color:#334155; flex:1; margin:0;" onclick="toggleModalEngine(document.getElementById('adminActionConfirmationWarningModal'), false)">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="shovelWarningConfirmationModal" style="z-index: 100000;">
+        <div class="modal-content" style="max-width: 350px; text-align: center;">
+            <h3 style="margin-top:0; color:#f44336;">Discard Crop?</h3>
+            <p style="font-size:14px; font-weight:600; color:#64748b; line-height:1.4;">Are you sure you want to remove this plant?</p>
+            <div class="reminder-checkbox-row" onclick="toggleReminderCheckboxValue()">
+                <input type="checkbox" id="suppressShovelModalCheckbox" style="pointer-events: none;">
+                <label>Don't show this reminder again</label>
+            </div>
+            <div style="display:flex; gap:10px; margin-top:20px;">
+                <button class="btn btn-main" style="background:#f44336; flex:1; margin:0;" onclick="confirmShovelExcavationAction()">Yes, Clear</button>
+                <button class="btn btn-merchant" style="background:#cbd5e1; color:#334155; flex:1; margin:0;" onclick="toggleModalEngine(document.getElementById('shovelWarningConfirmationModal'), false)">Cancel</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="shopModal">
+        <div class="modal-content">
+            <h3 style="margin-top: 0; color: #4a2c11; display:flex; justify-content:space-between; align-items:center;">
+                <span>Seed Shop</span>
+            </h3>
+            <div style="text-align:left; font-size: 12px; color:#ef4444; font-weight:700; margin-bottom:10px;" id="stockTimer">Refill: 3:00</div>
+            <div id="shopItems"></div>
+            <button class="btn btn-close" onclick="toggleShop(false)">Close Shop</button>
+        </div>
+    </div>
+
+    <div class="modal" id="merchantModal">
+        <div class="modal-content">
+            <div class="close-x" onclick="toggleMerchant(false)">✖</div>
+            <h3 style="margin-top:0; color:#4a2c11;">Barnaby the Merchant</h3>
+            <div class="npc-bubble" id="npcTalk">Greetings traveler! What are we selling today?</div>
+            <div id="npcChoices">
+                <button class="npc-choice-btn" onclick="triggerSellAll()">💰 Sell Whole Inventory</button>
+                <button class="npc-choice-btn" style="opacity: 0.6; cursor: not-allowed;" onclick="document.getElementById('npcTalk').innerText = 'My individual scale is broken! OUT OF ORDER.'">🎒 Sell A Specific Crop (OUT OF ORDER)</button>
+            </div>
+            <button class="btn btn-close" onclick="toggleMerchant(false)" style="margin-top:10px;">Leave Trade</button>
+        </div>
+    </div>
+
+    <div class="modal" id="vineDetailModal" style="z-index: 6500;">
+        <div class="modal-content" style="max-width: 360px;">
+            <div class="close-x" onclick="closeVineInspectionWindow()">✖</div>
+            <div class="vine-garden-view" id="vineGardenCanvas"></div>
+            <div style="font-size: 12px; font-weight:700; color:#475569; margin-top: 10px; text-align: center;">Tap grown produce to harvest!</div>
+        </div>
+    </div>
+
+    <div class="modal" id="infoModal" style="z-index: 6500;">
+        <div class="modal-content" style="max-width: 280px; padding-top: 30px;">
+            <div class="close-x" onclick="closeInfo()">✖</div>
+            <h3 id="infoTitle" style="margin-top: 0; color: #4a2c11;"></h3>
+            <div id="infoDesc" style="color: #666; font-weight: 600; line-height: 1.4; margin-bottom: 0;"></div>
+            <div id="countdownTimerBox" style="margin-top: 14px; padding: 8px; font-family: monospace; font-size: 14px; background: #ebdccb; border-radius: 8px; font-weight: bold; text-align: center; color: #9c27b0; display: none;"></div>
+        </div>
+    </div>
+
+    <div id="tutorialOverlay" class="tutorial-overlay-pane" style="display: none;">
+        <div class="tutorial-speech-card">
+            <h3 style="margin-top:0; color:#9c27b0; font-size:24px;">🤠 Barnaby's Guide</h3>
+            <div class="npc-bubble" id="tutorialBubbleText">Booting up tutorial track assets...</div>
+            <button class="btn btn-main" id="tutorialNextBtn" onclick="advanceTutorialScriptStep()" style="width: 100%;">Next</button>
+            <button class="btn btn-close" id="tutorialSkipBtn" onclick="skipTutorial()" style="margin-top: 10px; width: 100%;">Skip Tutorial</button>
+        </div>
+    </div>
+
+    <script>
+        var firebaseConfig = {
+            apiKey: "AIzaSyAXSe0SDFbe3ugLv2a8qaa62Ruww1MzdAM",
+            authDomain: "garden-venture.firebaseapp.com",
+            projectId: "garden-venture",
+            storageBucket: "garden-venture.firebasestorage.app",
+            messagingSenderId: "824449612635",
+            appId: "1:824449612635:web:c150ec842c7b8bd645787e",
+            measurementId: "G-F5VMDM8047",
+            databaseURL: "https://garden-venture-default-rtdb.firebaseio.com/"
+        };
+        
+        var db;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.database();
+        } catch (error) {
+            console.error("Firebase init safe-catch triggered:", error);
+        }
+
+        var WEATHER_MANIFEST_PROFILES = {
+            clear: { emoji: "☀️", display: "Clear Skies", desc: "Standard growing conditions apply." },
+            nature: { emoji: "🌿", display: "Nature’s Blessing", desc: "🍀 Blessing active! Growth speeds up by <b>+40-60%</b> across standard grid layouts." },
+            starfall: { emoji: "🌌", display: "Starfall Night", desc: "✨ Cosmic shooting stars overhead! Grants instant flat cash returns straight into your wallet on every harvest." },
+            honey: { emoji: "🍯", display: "Honey Breeze", desc: "🐝 Bee swarms are buzzing around! Flower crop seed strains grow <b>2x faster</b>." },
+            rainbow: { emoji: "🌈", display: "Rainbow Shower", desc: "🌈 Pure economic boost weather! Trade valuation payout rates from Barnaby are automatically heightened by <b>+20-40%</b>." },
+            crystal: { emoji: "💎", display: "Crystal Storm", desc: "💎 Shifting shard matrix lines! Payout values boosted by <b>+30%</b>, with a 30% chance for double weight harvest drops!" }
+        };
+
+        var CROP_TYPES = {
+            carrot: { name: "Carrot", rarity: "Common", behavior: "std", cost: 5, vpk: 4, time: 6, stages: ["🌱", "🥕", "🥕"], icon: "🥕", desc: "Single-use root." },
+            potato: { name: "Potato", rarity: "Common", behavior: "std", cost: 8, vpk: 6, time: 8, stages: ["🌱", "🥔", "🥔"], icon: "🥔", desc: "Reliable root loop." },
+            tomato: { name: "Tomato", rarity: "Common", behavior: "vine", cost: 15, vpk: 6, time: 20, stages: ["🌱", "🌿", "🍅"], vineIcon: "🌿", fruitIcon: "🍅", desc: "Permanent climber setup." },
+            watermelon: { name: "Watermelon", rarity: "Uncommon", behavior: "vine", cost: 40, vpk: 15, time: 25, stages: ["🌱", "🍃", "🍉"], vineIcon: "🍃", fruitIcon: "🍉", desc: "Heavy bulk layout pack." },
+            cabbage: { name: "Cabbage", rarity: "Uncommon", behavior: "std", cost: 35, vpk: 12, time: 20, stages: ["🌱", "🥬", "🥬"], icon: "🥬", desc: "Leafy green head." },
+            starfruit: { name: "Star Fruit", rarity: "Rare", behavior: "vine", cost: 100, vpk: 25, time: 120, stages: ["🌱", "🌳", "⭐"], vineIcon: "🌳", fruitIcon: "⭐", desc: "Exotic tree specimen." },
+            glowberry: { name: "Glowberry", rarity: "Rare", behavior: "vine", cost: 120, vpk: 30, time: 140, stages: ["🌱", "🌿", "💡"], vineIcon: "🌿", fruitIcon: "💡", desc: "Bioluminescent vine profile." },
+            hydraapple: { name: "Hydra Apple", rarity: "Legendary", behavior: "vine", cost: 400, vpk: 60, time: 300, stages: ["🌱", "🌳", "🍎"], vineIcon: "🌳", fruitIcon: "🍎", desc: "Canopy structure loop." },
+            broccoli: { name: "Broccoli", rarity: "Legendary", behavior: "std", cost: 300, vpk: 80, time: 120, stages: ["🌱", "🥦", "🥦"], icon: "🥦", desc: "Whole single floret." },
+            stormedmushroom: { name: "Stormed Mushroom", rarity: "Astral", behavior: "std", cost: 8000, vpk: 1500, time: 840, stages: ["🌱", "🍄", "⚡"], icon: "🍄", desc: "A heavily charged fungal cluster crackling with static voltage atmospheric nodes.", limited: true },
+            nectarroot: { name: "Nectar Root", rarity: "Mythical", behavior: "std", cost: 1000, vpk: 250, time: 300, stages: ["🌱", "🪷", "🪷"], icon: "🪷", desc: "Godly root matrix layout." },
+            grape: { name: "Grape", rarity: "Mythical", behavior: "vine", cost: 1200, vpk: 120, time: 700, stages: ["🌱", "🌿", "🍇"], vineIcon: "🌿", fruitIcon: "🍇", desc: "Infinite purple clusters trellis." },
+            squash: { name: "Squash", rarity: "Astral", behavior: "std", cost: 5000, vpk: 1000, time: 600, stages: ["🌱", "🎃", "🪐"], icon: "🪐", desc: "Stellar system warping layout." },
+            cherry: { name: "Cherry", rarity: "Astral", behavior: "vine", cost: 6000, vpk: 600, time: 1400, stages: ["🌱", "🌳", "🍒"], vineIcon: "🌳", fruitIcon: "🍒", desc: "Nebula cloud system parameters." },
+            rainbowpeach: { name: "Rainbow Peach", rarity: "Transcendent", behavior: "std", cost: 55000, vpk: 9500, time: 4200, stages: ["🌱", "🌸", "🍑"], icon: "🍑", desc: "A mythical golden fruit born from combined rain shower nodes.", limited: true },
+            singularitysprout: { name: "Singularity Sprout", rarity: "Transcendent", behavior: "std", cost: 50000, vpk: 8000, time: 3600, stages: ["🌱", "🌱", "🌱"], icon: "🌱", desc: "Black hole web configuration matrix." }
+        };
+
+        var money = 50;
+        var selectedSeed = null;
+        var isDrawerOpen = false;
+        var gameStarted = false;
+        var autoLoadTimer;
+        var inventory = {};
+        var seedsBag = {};
+        var shopStock = {};
+        var plots = [];
+        var activeCountdownIntervalInstance = null;
+        var lastExecutedCommandTimestamp = Date.now();
+
+        for(var p=0; p<27; p++) {
+            plots.push(null);
+        }
+        
+        var activeFieldPageIndex = 0;
+        var unlockedFieldsArray = [true, false, false]; 
+        var globalStockTimer = 180;
+        var merchantActiveMode = false;
+        var activeVinePlotIndex = null; 
+        var isProcessingTrade = false;
+        var lastEngineTimestamp = Date.now();
+        var globalOverrideSeedOffset = 0;
+        var shovelModeActive = false;
+        var activeShovelTargetIdx = null;
+        var shovelWarningSuppressed = false;
+        var activeTutorialStepIdx = -1;
+        var audioCtx = null;
+        var drumStepTracker = 0;
+        var weatherClockRemainingSeconds = 300; 
+        var activeWeatherStackStateMap = { clear: true, nature: false, starfall: false, honey: false, rainbow: false, crystal: false };
+        var isAdminLoggedIn = false;
+        var adminActionWarningSuppressed = false;
+        var pendingAdminAuthorityCallback = null;
+
+        for(var key in CROP_TYPES) { 
+            inventory[key] = 0; 
+            seedsBag[key] = 0; 
+            shopStock[key] = 0; 
+        }
+
+        if (db) {
+            db.ref('globalNetworkMarqueeBannerNode').on('value', function(snapshot) {
+                var val = snapshot.val();
+                var banner = document.getElementById('globalMarqueeBanner');
+                if (banner) {
+                    if (val && val.text) {
+                        banner.innerHTML = "📢 " + val.text;
+                        banner.style.display = "block";
+                    } else {
+                        banner.style.display = "none";
+                        banner.innerHTML = "";
+                    }
+                }
+            });
+
+            db.ref('globalSyncWeatherMapParameters').on('value', function(snapshot) {
+                var data = snapshot.val();
+                if (data) {
+                    var scope = document.getElementById('adminScopeSelector') ? document.getElementById('adminScopeSelector').value : 'global';
+                    if (scope === 'global') {
+                        if(data.activeWeatherStackStateMap) activeWeatherStackStateMap = data.activeWeatherStackStateMap;
+                        updateWeatherVisualsEngineLayer();
+                        updateUI();
+                    }
+                }
+            });
+
+            db.ref('globalMarketplaceStockRefillCount').on('value', function(snapshot) {
+                var data = snapshot.val();
+                if (data) {
+                    shopStock = data;
+                    renderShop();
+                } else {
+                    restockShop(true);
+                }
+            });
+        }
+
+        function safeDatabaseWrite(ref, data) {
+            if (!db) return;
+            ref.set(data).catch(function(err) {
+                console.error("WRITE REFUSED: Rules configuration blocking payload.", err);
+            });
+        }
+
+        function renderInventory() {
+            var container = document.getElementById('inventoryContainer');
+            if(!container) return;
+            container.innerHTML = '';
+            var hasItems = false;
+            
+            for(var key in seedsBag) {
+                if(seedsBag[key] > 0) {
+                    hasItems = true;
+                    var item = document.createElement('div');
+                    item.className = 'inv-item' + (selectedSeed === key && !shovelModeActive ? ' selected' : '');
+                    item.onclick = (function(k) { return function() { 
+                        if(shovelModeActive) toggleShovelDemolitionMode();
+                        selectedSeed = k; 
+                        renderInventory(); 
+                    }; })(key);
+                    item.innerHTML = '<span style="font-size:24px;">' + (CROP_TYPES[key].icon || CROP_TYPES[key].vineIcon) + '</span><span>' + CROP_TYPES[key].name + ' Seed</span><span style="font-weight:bold;">x' + seedsBag[key] + '</span>';
+                    container.appendChild(item);
+                }
+            }
+            
+            for(var key in inventory) {
+                if(inventory[key] > 0) {
+                    hasItems = true;
+                    var item = document.createElement('div');
+                    item.className = 'inv-item';
+                    item.innerHTML = '<span style="font-size:24px;">' + (CROP_TYPES[key].fruitIcon || CROP_TYPES[key].icon) + '</span><span>' + CROP_TYPES[key].name + '</span><span style="font-weight:bold;">' + parseFloat(inventory[key]).toFixed(1) + 'kg</span>';
+                    container.appendChild(item);
+                }
+            }
+            
+            if(!hasItems) {
+                container.innerHTML = '<div class="empty-drawer-msg">Bag empty! Buy seeds from the shop.</div>';
+            }
+        }
+
+        function formatTimeDisplay(secs) {
+            var m = Math.floor(secs / 60);
+            var s = Math.floor(secs % 60);
+            return m + ":" + (s < 10 ? "0" : "") + s;
+        }
+
+        function saveStateSnapshot() {
+            var state = {
+                money: money,
+                inventory: inventory,
+                seedsBag: seedsBag, 
+                unlockedFieldsArray: unlockedFieldsArray,
+                plots: plots
+            };
+            localStorage.setItem('gv_farm_save_data_v8', JSON.stringify(state));
+            localStorage.setItem('gv_last_timestamp', Date.now().toString());
+        }
+
+        function spawnFloatingText(text, x, y) {
+            var el = document.createElement('div');
+            el.className = 'floating-text';
+            el.innerText = text;
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
+            document.body.appendChild(el);
+            setTimeout(function() { if(el.parentNode) el.parentNode.removeChild(el); }, 800);
+        }
+
+        function toggleDrawer() {
+            isDrawerOpen = !isDrawerOpen;
+            var drawer = document.getElementById('inventoryDrawer');
+            var text = document.getElementById('handleText');
+            if(isDrawerOpen) {
+                drawer.classList.add('open');
+                text.innerText = "Push Down Seeds Bag";
+            } else {
+                drawer.classList.remove('open');
+                text.innerText = "Pull Up Seeds Bag";
+            }
+        }
+
+        document.addEventListener("DOMContentLoaded", function() {
+            if(db) {
+                db.ref('globalAdminCommands').on('value', function(snapshot) {
+                    var data = snapshot.val();
+                    if (data && data.timestamp > lastExecutedCommandTimestamp) {
+                        lastExecutedCommandTimestamp = data.timestamp;
+                        if (gameStarted) {
+                            if (data.command === "instant_grow") {
+                                plots.forEach(function(plot) {
+                                    if (plot && CROP_TYPES[plot.type]) {
+                                        plot.remainingSecondsTracking = 0;
+                                        if (CROP_TYPES[plot.type].behavior === 'vine') {
+                                            plot.fruits = [{ kg: 1.2 }, { kg: 1.4 }, { kg: 0.9 }];
+                                        }
+                                    }
+                                });
+                                triggerMaturityAudioSFX();
+                                spawnFloatingText("⚡ SERVER-WIDE INSTANT GROW EVENT! ⏳", window.innerWidth/2, window.innerHeight/2);
+                                updateUI();
+                                saveStateSnapshot();
+                            } else if (data.command === "gift_coins") {
+                                money += data.amount;
+                                spawnFloatingText("💵 SERVER-WIDE INJECTION: +$" + data.amount + "!", window.innerWidth/2, window.innerHeight/2);
+                                updateUI();
+                                saveStateSnapshot();
+                            } else if (data.command === "shop_restock") {
+                                var notifyEl = document.getElementById('notification');
+                                if (notifyEl) {
+                                    notifyEl.innerHTML = "🏪 Admin Added: " + data.amount + " of " + data.cropName + " into Shop!";
+                                    notifyEl.classList.add('show');
+                                    triggerRestockAlertAudioSFX();
+                                    setTimeout(function() { notifyEl.classList.remove('show'); }, 5000);
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
+
+        function handlePlotClickSelection(index) {
+            if (shovelModeActive) {
+                if (plots[index]) {
+                    plots[index] = null;
+                    spawnFloatingText("🧹 Cleared", window.innerWidth/2, window.innerHeight/2);
+                    updateUI();
+                    saveStateSnapshot();
+                }
+            } else if (!plots[index] && selectedSeed) {
+                plant(index);
+            }
+        }
+
+        function toggleShop(show) {
+            var shop = document.getElementById('shopModal');
+            shop.style.display = show ? 'flex' : 'none';
+            shop.style.opacity = show ? '1' : '0';
+            if(show) renderShop();
+        }
+
+        function renderShop() {
+            var container = document.getElementById('shopItems');
+            if(!container) return;
+            container.innerHTML = '';
+            for(var key in CROP_TYPES) {
+                var stock = shopStock[key] || 0;
+                var crop = CROP_TYPES[key];
+                var labelBadgeL = crop.limited ? ' <span style="color: #9c27b0; font-weight: bold;">[L]</span><span class="info-btn" onclick="openLimitedInformationPanel(\'' + key + '\')">❓</span>' : '';
+                var div = document.createElement('div');
+                div.className = 'shop-item';
+                div.innerHTML = '<div class="shop-details"><div>' + (crop.icon || crop.vineIcon) + ' ' + crop.name + ' Seed' + labelBadgeL + '</div><span>$' + crop.cost + ' | Stock: ' + stock + '</span></div><button class="btn btn-buy" ' + (money < crop.cost || stock <= 0 ? 'disabled' : '') + ' onclick="buySeed(\'' + key + '\')">Buy</button>';
+                container.appendChild(div);
+            }
+        }
+
+        function openLimitedInformationPanel(cropId) {
+            var crop = CROP_TYPES[cropId];
+            document.getElementById('infoTitle').innerText = "⏳ Limited Edition Strain";
+            document.getElementById('infoDesc').innerText = crop.desc + " This item is a temporary stock drops blueprint. Purchase them before Saturday's market rotation sweeps them away!";
+            
+            var timerBox = document.getElementById('countdownTimerBox');
+            timerBox.style.display = 'block';
+            
+            if (activeCountdownIntervalInstance) clearInterval(activeCountdownIntervalInstance);
+            
+            function tickSaturdayClock() {
+                var now = new Date();
+                var saturday = new Date();
+                saturday.setDate(now.getDate() + (6 - now.getDay()));
+                saturday.setHours(23, 59, 59, 999);
+                
+                var totalDiffMs = saturday.getTime() - now.getTime();
+                if (totalDiffMs <= 0) {
+                    timerBox.innerText = "Rotation Ended!";
+                    return;
+                }
+                
+                var d = Math.floor(totalDiffMs / (1000 * 60 * 60 * 24));
+                var h = Math.floor((totalDiffMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+                var m = Math.floor((totalDiffMs % (1000 * 60 * 60)) / (1000 * 60));
+                var s = Math.floor((totalDiffMs % (1000 * 60)) / 1000);
+                
+                timerBox.innerText = "Leaves in: " + d + "d " + (h < 10 ? "0" : "") + h + "h " + (m < 10 ? "0" : "") + m + "m " + (s < 10 ? "0" : "") + s + "s";
+            }
+            
+            tickSaturdayClock();
+            activeCountdownIntervalInstance = setInterval(tickSaturdayClock, 1000);
+            toggleModalEngine(document.getElementById('infoModal'), true);
+        }
+
+        function closeInfo() {
+            if (activeCountdownIntervalInstance) clearInterval(activeCountdownIntervalInstance);
+            document.getElementById('countdownTimerBox').style.display = 'none';
+            toggleModalEngine(document.getElementById('infoModal'), false);
+        }
+
+        function toggleMerchant(show) {
+            var merch = document.getElementById('merchantModal');
+            merch.style.display = show ? 'flex' : 'none';
+            merch.style.opacity = show ? '1' : '0';
+        }
+
+        function toggleSettingsModal(show) {
+            toggleModalEngine(document.getElementById('settingsModal'), show);
+        }
+
+        function initiateWipeSequence() {
+            document.getElementById('wipeAuthInput').value = "";
+            toggleModalEngine(document.getElementById('settingsModal'), false);
+            toggleModalEngine(document.getElementById('wipeModal'), true);
+        }
+
+        function confirmWipeSequence() {
+            var input = document.getElementById('wipeAuthInput').value;
+            if (input && input.trim() === "Delete My Garden") {
+                localStorage.removeItem('gv_farm_save_data_v8');
+                localStorage.removeItem('gv_last_timestamp');
+                
+                money = 50;
+                inventory = {};
+                seedsBag = {};
+                for(var key in CROP_TYPES) { inventory[key] = 0; seedsBag[key] = 0; }
+                
+                plots = [];
+                for(var p=0; p<27; p++) plots.push(null);
+                
+                unlockedFieldsArray = [true, false, false];
+                activeFieldPageIndex = 0;
+                document.getElementById('fieldPage0').classList.add('active');
+                document.getElementById('fieldPage1').classList.remove('active');
+                document.getElementById('fieldPage2').classList.remove('active');
+                
+                toggleModalEngine(document.getElementById('wipeModal'), false);
+                
+                activeTutorialStepIdx = -1;
+                advanceTutorialScriptStep();
+                
+                updateLockOverlays();
+                updateUI();
+                saveStateSnapshot();
+                spawnFloatingText("Save Erased!", window.innerWidth/2, window.innerHeight/2);
+            } else {
+                alert("Incorrect authorization text. Save data was NOT deleted.");
+            }
+        }
+
+        function scrollField(dir) {
+            var totalFields = 3;
+            var newIdx = activeFieldPageIndex + dir;
+            if(newIdx >= 0 && newIdx < totalFields) {
+                document.getElementById('fieldPage' + activeFieldPageIndex).classList.remove('active');
+                activeFieldPageIndex = newIdx;
+                document.getElementById('fieldPage' + activeFieldPageIndex).classList.add('active');
+                document.getElementById('currentFieldIndicator').innerText = "Field " + (activeFieldPageIndex + 1) + " / " + totalFields;
+                updateUI();
+            }
+        }
+
+        function togglePatchNotesModal(show) { toggleModalEngine(document.getElementById('patchNotesModal'), show); }
+        
+        function triggerStandaloneAdminLoginPrompt() { 
+            if (isAdminLoggedIn) {
+                refreshAdminSeedButtons(); 
+                toggleModalEngine(document.getElementById('adminStandaloneModalBox'), true);
+                return;
+            }
+            document.getElementById('adminPinInput').value = '';
+            toggleModalEngine(document.getElementById('adminAuthModal'), true);
+        }
+
+        function submitAdminPinCode() {
+            var pin = document.getElementById('adminPinInput').value;
+            if (pin === "1234") { 
+                isAdminLoggedIn = true;
+                toggleModalEngine(document.getElementById('adminAuthModal'), false);
+                refreshAdminSeedButtons(); 
+                toggleModalEngine(document.getElementById('adminStandaloneModalBox'), true);
+            } else {
+                alert("❌ ACCESS DENIED.");
+            }
+        }
+
+        function refreshAdminSeedButtons() {
+            var container = document.getElementById('adminSeedControls');
+            if(!container) return;
+            container.innerHTML = '';
+            for(var key in CROP_TYPES) {
+                var crop = CROP_TYPES[key];
+                var labelBadgeL = crop.limited ? ' [L]' : '';
+                var btn = document.createElement('button');
+                btn.className = 'btn btn-merchant';
+                btn.style.margin = '0';
+                btn.style.fontSize = '12px';
+                btn.style.padding = '8px 4px';
+                btn.innerHTML = (crop.icon || crop.vineIcon) + ' ' + crop.name + labelBadgeL;
+                btn.onclick = (function(k) { return function() { triggerAdminSpecificShopInjection(k); }; })(key);
+                container.appendChild(btn);
+            }
+        }
+
+        function toggleModalEngine(modalNode, show) { if(modalNode) { modalNode.style.display = show ? 'flex' : 'none'; modalNode.style.opacity = show ? '1' : '0'; } }
+        function pseudoSeededRandom(s) { var x = Math.sin(s++) * 10000; return x - Math.floor(x); }
+        function routeActionThroughSafeguardBoxProxy(cb) { cb(); } 
+        function triggerAdminClearWallet() { money = 0; updateUI(); }
+
+        function triggerAdminGlobalCoinGift(amt) { 
+            var scope = document.getElementById('adminScopeSelector').value;
+            if (scope === 'global') {
+                safeDatabaseWrite(db.ref('globalAdminCommands'), { command: "gift_coins", amount: amt, timestamp: Date.now() });
+            } else {
+                money += amt;
+                updateUI();
+            }
+        }
+
+        function broadcastOwnerAnnouncementToServer() {
+            routeActionThroughSafeguardBoxProxy(function() {
+                var text = document.getElementById('ownerGlobalMessageTextArea').value; 
+                if (text.trim() === "") return;
+                
+                var scope = document.getElementById('adminScopeSelector').value;
+                var banner = document.getElementById('globalMarqueeBanner');
+                if (banner) {
+                    banner.innerHTML = "📢 Admin: " + text;
+                    banner.style.display = "block";
+                }
+                
+                if (scope === 'global') {
+                    safeDatabaseWrite(db.ref('globalNetworkMarqueeBannerNode'), { text: "Admin: " + text });
+                    setTimeout(function() {
+                        safeDatabaseWrite(db.ref('globalNetworkMarqueeBannerNode'), null);
+                    }, 7000);
+                } else {
+                    setTimeout(function() {
+                        if (banner && banner.innerHTML === "📢 Admin: " + text) {
+                            banner.style.display = "none";
+                            banner.innerHTML = "";
+                        }
+                    }, 7000);
+                }
+                toggleModalEngine(document.getElementById('adminStandaloneModalBox'), false); 
+                document.getElementById('ownerGlobalMessageTextArea').value = "";
+            });
+        }
+
+        function triggerAdminSpecificShopInjection(cropId) { 
+            var amt = parseInt(document.getElementById('adminRestockAmountSelector').value) || 10;
+            var scope = document.getElementById('adminScopeSelector').value;
+            
+            shopStock[cropId] = (shopStock[cropId] || 0) + amt;
+            renderShop();
+            
+            if (scope === 'global') {
+                safeDatabaseWrite(db.ref('globalMarketplaceStockRefillCount/' + cropId), shopStock[cropId]);
+                safeDatabaseWrite(db.ref('globalAdminCommands'), { command: "shop_restock", cropName: CROP_TYPES[cropId].name, amount: amt, timestamp: Date.now() });
+            } else {
+                var notifyEl = document.getElementById('notification');
+                if (notifyEl) {
+                    notifyEl.innerHTML = "🏪 Admin Added: " + amt + " of " + CROP_TYPES[cropId].name + " into Shop!";
+                    notifyEl.classList.add('show');
+                    triggerRestockAlertAudioSFX();
+                    setTimeout(function() { notifyEl.classList.remove('show'); }, 5000);
+                }
+            }
+        }
+
+        function triggerAdminGlobalInstantGrow() {
+            var scope = document.getElementById('adminScopeSelector').value;
+            if (scope === 'global') {
+                safeDatabaseWrite(db.ref('globalAdminCommands'), { command: "instant_grow", timestamp: Date.now() });
+            } else {
+                plots.forEach(function(plot) {
+                    if (plot && CROP_TYPES[plot.type]) {
+                        plot.remainingSecondsTracking = 0;
+                        if (CROP_TYPES[plot.type].behavior === 'vine') {
+                            plot.fruits = [{ kg: 1.2 }, { kg: 1.4 }, { kg: 0.9 }];
+                        }
+                    }
+                });
+                triggerMaturityAudioSFX();
+                updateUI();
+                saveStateSnapshot();
+            }
+        }
+
+        function triggerAdminGlobalRestock() { 
+            var scope = document.getElementById('adminScopeSelector').value;
+            globalOverrideSeedOffset += Math.floor(Math.random() * 5000) + 1; 
+            var baseGlobalBlock = Math.floor(Date.now() / 180000) + globalOverrideSeedOffset;
+            var seedIndex = baseGlobalBlock;
+            var syncStock = {};
+            
+            Object.keys(CROP_TYPES).forEach(function(cropKey) {
+                var r = CROP_TYPES[cropKey].rarity; 
+                seedIndex += 13; 
+                var chance = pseudoSeededRandom(seedIndex);
+                if(r === 'Common') syncStock[cropKey] = 6 + Math.floor(chance * 10);
+                else if(r === 'Uncommon') syncStock[cropKey] = 3 + Math.floor(chance * 5);
+                else if(r === 'Rare') syncStock[cropKey] = chance < 0.45 ? 1 + Math.floor(chance * 3) : 0;
+                else if(r === 'Legendary') syncStock[cropKey] = chance < 0.25 ? 1 + Math.floor(chance * 2) : 0;
+                else if(r === 'Mythical') syncStock[cropKey] = chance < 0.12 ? 1 : 0;
+                else if(r === 'Astral') syncStock[cropKey] = chance < 0.08 ? 1 : 0; 
+                else if(r === 'Transcendent') syncStock[cropKey] = chance < 0.05 ? 1 : 0; 
+            });
+            
+            if (scope === 'global') {
+                safeDatabaseWrite(db.ref('globalMarketplaceStockRefillCount'), syncStock);
+            } else {
+                shopStock = syncStock;
+                renderShop();
+            }
+        }
+
+        function toggleAdminWeatherStackState(typeKey) {
+            routeActionThroughSafeguardBoxProxy(function() {
+                var scope = document.getElementById('adminScopeSelector').value;
+                activeWeatherStackStateMap[typeKey] = !activeWeatherStackStateMap[typeKey]; 
+                var standardClear = true;
+                for(var k in activeWeatherStackStateMap) { 
+                    if(k !== 'clear' && activeWeatherStackStateMap[k]) standardClear = false; 
+                }
+                activeWeatherStackStateMap.clear = standardClear; 
+                
+                if (scope === 'global') {
+                    safeDatabaseWrite(db.ref('globalSyncWeatherMapParameters'), {
+                        activeWeatherStackStateMap: activeWeatherStackStateMap,
+                        weatherClockRemainingSeconds: weatherClockRemainingSeconds
+                    });
+                } else {
+                    updateWeatherVisualsEngineLayer();
+                    updateUI();
+                }
+            });
+        }
+
+        function executeSpontaneousWeatherShiftCycle() {
+            var syncMap = { clear: false, nature: false, starfall: false, honey: false, rainbow: false, crystal: false };
+            var activeWeatherKey = 'clear';
+            
+            if (Math.random() >= 0.6) {
+                var profiles = ['nature', 'starfall', 'honey', 'rainbow', 'crystal'];
+                activeWeatherKey = profiles[Math.floor(Math.random() * profiles.length)];
+            }
+            syncMap[activeWeatherKey] = true;
+            
+            safeDatabaseWrite(db.ref('globalSyncWeatherMapParameters'), {
+                activeWeatherStackStateMap: syncMap,
+                weatherClockRemainingSeconds: 300
+            });
+        }
+
+        function restockShop(isSilent) {
+            var baseGlobalBlock = Math.floor(Date.now() / 180000) + globalOverrideSeedOffset;
+            var seedIndex = baseGlobalBlock;
+            var localBackupStock = {};
+            
+            Object.keys(CROP_TYPES).forEach(function(cropKey) {
+                var r = CROP_TYPES[cropKey].rarity; 
+                seedIndex += 13; 
+                var chance = pseudoSeededRandom(seedIndex);
+                if(r === 'Common') localBackupStock[cropKey] = 6 + Math.floor(chance * 10);
+                else if(r === 'Uncommon') localBackupStock[cropKey] = 3 + Math.floor(chance * 5);
+                else if(r === 'Rare') localBackupStock[cropKey] = chance < 0.45 ? 1 + Math.floor(chance * 3) : 0;
+                else if(r === 'Legendary') localBackupStock[cropKey] = chance < 0.25 ? 1 + Math.floor(chance * 2) : 0;
+                else if(r === 'Mythical') localBackupStock[cropKey] = chance < 0.12 ? 1 : 0;
+                else if(r === 'Astral') localBackupStock[cropKey] = chance < 0.08 ? 1 : 0; 
+                else if(r === 'Transcendent') localBackupStock[cropKey] = chance < 0.05 ? 1 : 0; 
+            });
+            
+            shopStock = localBackupStock;
+            renderShop();
+            
+            if(db) {
+                db.ref('globalMarketplaceStockRefillCount').transaction(function(currentData) {
+                    if (currentData === null) {
+                        return localBackupStock;
+                    }
+                    return undefined; 
+                }, function(error, committed, snapshot) {
+                    if (error) {
+                        console.warn("Write permission denied. Defaulting to local shop variables parsing configuration.");
+                    }
+                });
+            }
+        }
+
+        function updateLockOverlays() {
+            var mask1 = document.getElementById('lockMask1');
+            var mask2 = document.getElementById('lockMask2');
+            if (mask1) mask1.style.display = unlockedFieldsArray[1] ? 'none' : 'flex';
+            if (mask2) mask2.style.display = unlockedFieldsArray[2] ? 'none' : 'flex';
+        }
+
+        function updateWeatherVisualsEngineLayer() {
+            var overlay = document.getElementById('weatherVisualEffectsOverlay');
+            if (!overlay) return;
+            overlay.innerHTML = ''; 
+            
+            var weatherEmojis = [];
+            if (activeWeatherStackStateMap.starfall) {
+                overlay.style.backgroundColor = 'rgba(11, 9, 36, 0.35)';
+                weatherEmojis.push("✨");
+            } 
+            if (activeWeatherStackStateMap.crystal) {
+                overlay.style.backgroundColor = 'rgba(224, 242, 254, 0.2)';
+                weatherEmojis.push("💎");
+            } 
+            if (activeWeatherStackStateMap.nature) {
+                overlay.style.backgroundColor = 'rgba(34, 197, 94, 0.08)';
+                weatherEmojis.push("🍀");
+            } 
+            if (activeWeatherStackStateMap.honey) {
+                overlay.style.backgroundColor = 'rgba(251, 191, 36, 0.1)';
+                weatherEmojis.push("🐝");
+            } 
+            if (activeWeatherStackStateMap.rainbow) {
+                overlay.style.backgroundColor = 'rgba(168, 85, 247, 0.07)';
+                weatherEmojis.push("💧");
+            }
+            
+            if (weatherEmojis.length === 0) {
+                overlay.style.backgroundColor = 'transparent';
+                return;
+            }
+
+            for (var p = 0; p < 35; p++) {
+                var particle = document.createElement('div');
+                particle.className = 'weather-particle';
+                particle.innerText = weatherEmojis[Math.floor(Math.random() * weatherEmojis.length)];
+                particle.style.left = Math.floor(Math.random() * 100) + '%';
+                particle.style.animationDuration = (2.2 + Math.random() * 2.8).toFixed(2) + 's';
+                particle.style.animationDelay = "-" + (Math.random() * 5).toFixed(2) + "s";
+                overlay.appendChild(particle);
+            }
+        }
+
+        function toggleShovelDemolitionMode() {
+            if(typeof seedsBag === 'undefined') return;
+            shovelModeActive = !shovelModeActive; 
+            var toggleBtn = document.getElementById('shovelModeToggleBtn');
+            if (shovelModeActive) { 
+                toggleBtn.classList.add('active'); 
+                toggleBtn.innerHTML = "⛏️ Active"; 
+                selectedSeed = null; 
+                renderInventory(); 
+            } else { 
+                toggleBtn.classList.remove('active'); 
+                toggleBtn.innerHTML = "⛏️ Shovel"; 
+            }
+        }
+
+        function updateUI() {
+            try {
+                if(typeof seedsBag === 'undefined') return; 
+
+                var mDisp = document.getElementById('money'); 
+                if(mDisp) mDisp.innerText = money; 
+                
+                renderInventory();
+                
+                var wCornerHUD = document.getElementById('weatherCornerHUD'); 
+                if (wCornerHUD && gameStarted) { wCornerHUD.style.display = 'flex'; }
+                
+                var HUDTitle = document.getElementById('weatherTitleSubNode');
+                var HUDTimer = document.getElementById('weatherTimerSubNode');
+                var compositeEmojis = ""; 
+                for(var k in activeWeatherStackStateMap) { 
+                    if(activeWeatherStackStateMap[k] && WEATHER_MANIFEST_PROFILES[k]) {
+                        compositeEmojis += WEATHER_MANIFEST_PROFILES[k].emoji; 
+                    }
+                }
+                
+                if(HUDTitle) HUDTitle.innerText = (compositeEmojis || "☀️") + " Skies";
+                
+                var displayMins = Math.floor(weatherClockRemainingSeconds / 60);
+                var displaySecs = Math.floor(weatherClockRemainingSeconds % 60);
+                if(HUDTimer) HUDTimer.innerText = displayMins + ":" + (displaySecs < 10 ? "0" + displaySecs : displaySecs);
+
+                var currentSystemTime = Date.now();
+                var totalDeltaSecondsPassed = (currentSystemTime - lastEngineTimestamp) / 1000; 
+                lastEngineTimestamp = currentSystemTime; 
+
+                if (gameStarted) {
+                    for(var p=0; p<plots.length; p++) {
+                        var plot = plots[p];
+                        if (plot && CROP_TYPES[plot.type]) {
+                            var oldGrowthDuration = plot.totalGrowthTime || CROP_TYPES[plot.type].time;
+                            
+                            var dynamicGrowthMultiplierModifier = 1.0;
+                            if (activeWeatherStackStateMap.nature) dynamicGrowthMultiplierModifier *= 1.5; 
+                            if (activeWeatherStackStateMap.honey && (plot.type === 'starfruit' || plot.type === 'nectarroot')) dynamicGrowthMultiplierModifier *= 2.0;
+                            
+                            plot.remainingSecondsTracking = (plot.remainingSecondsTracking || 0) - (totalDeltaSecondsPassed * dynamicGrowthMultiplierModifier); 
+                            if (plot.remainingSecondsTracking < 0) plot.remainingSecondsTracking = 0;
+                        }
+                    }
+                }
+
+                var farm = document.getElementById('farmField' + activeFieldPageIndex); 
+                if(!farm) return; 
+                farm.innerHTML = '';
+                var startIndex = activeFieldPageIndex * 9;
+                for (var i = startIndex; i < startIndex + 9; i++) {
+                    (function(index) {
+                        var plot = plots[index];
+                        var div = document.createElement('div'); 
+                        div.className = 'tile'; 
+                        div.onmouseenter = function() { window.lastHoveredPlotIndex = index; };
+                        
+                        var soil = document.createElement('div'); 
+                        soil.className = 'foreground-soil';
+                        
+                        if (!plot || !CROP_TYPES[plot.type]) { 
+                            div.innerHTML = ''; 
+                            div.onclick = function() { handlePlotClickSelection(index); }; 
+                        } else {
+                            var cropData = CROP_TYPES[plot.type], extraClass = ""; 
+                            if (cropData.rarity === 'Astral') extraClass = " aura-astral"; 
+                            if (cropData.rarity === 'Transcendent') extraClass = " aura-transcendent";
+                            
+                            if (cropData.behavior === 'vine') {
+                                var heightFT = plot.height || 2.0, isInitialMaturityGrown = plot.remainingSecondsTracking <= 0;
+                                if (!isInitialMaturityGrown) { 
+                                    var remaining = Math.ceil(plot.remainingSecondsTracking); 
+                                    div.innerHTML = '<span class="timer">Sprouting: ' + remaining + 's</span><span class="plant-element' + extraClass + '" style="transform: translateX(-50%) translateY(15px) scale(0.5);">' + cropData.stages[0] + '</span>'; 
+                                    div.onclick = function() { handlePlotClickSelection(index); }; 
+                                } else { 
+                                    checkAndGrowVineFruits(plot); 
+                                    if(activeVinePlotIndex === index) { renderVineDetailModal(); } 
+                                    var vineScale = Math.min(3.5, 0.7 + (heightFT * 0.12));
+                                    var fruitIndicator = plot.fruits.length > 0 ? ' ' + cropData.fruitIcon + ' x' + plot.fruits.length : ''; 
+                                    if (plot.fruits.length > 0) { div.className = 'tile ready'; } 
+                                    div.innerHTML = '<span class="timer">' + heightFT.toFixed(1) + ' FT' + fruitIndicator + '</span><span class="plant-element' + extraClass + '" style="transform: translateX(-50%) translateY(-20px) scale(' + vineScale + ');">' + cropData.vineIcon + '</span>'; 
+                                    div.onclick = function() { if (shovelModeActive) { handlePlotClickSelection(index); } else { openVineInspectionWindow(index); } }; 
+                                }
+                            } else {
+                                var isFinished = plot.remainingSecondsTracking <= 0;
+                                var remaining = Math.ceil(plot.remainingSecondsTracking);
+                                var totalDuration = plot.totalGrowthTime || cropData.time;
+                                var currentProgressPct = 1.0 - (plot.remainingSecondsTracking / totalDuration); 
+                                var currentEmoji = cropData.stages[0]; 
+                                
+                                if (isFinished) currentEmoji = cropData.stages[2]; 
+                                else if (currentProgressPct >= 0.4) currentEmoji = cropData.stages[1];
+                                
+                                // FIXED: -22px translation so crops sit nicely inside the dirt box 
+                                var startY = 30, currentY = isFinished ? -22 : startY - (currentProgressPct * startY); 
+                                var visualScale = (0.4 + (currentProgressPct * 0.6)) * (1 + (plot.targetKg * 0.04)); 
+                                if (visualScale > 3.0) visualScale = 3.0;
+                                
+                                if (isFinished) { 
+                                    div.className = 'tile ready'; 
+                                    div.innerHTML = '<span class="timer">READY (' + plot.targetKg.toFixed(1) + ' KG)</span><span class="plant-element' + extraClass + '" style="transform: translateX(-50%) translateY(' + currentY + 'px) scale(' + visualScale + ');">' + currentEmoji + '</span>'; 
+                                    div.onclick = function(e) { if (shovelModeActive) { handlePlotClickSelection(index); } else { harvestStandardCrop(index, plot.type, plot.targetKg, e); } }; 
+                                } else { 
+                                    div.innerHTML = '<span class="timer">' + formatTimeDisplay(remaining) + '</span><span class="plant-element' + extraClass + '" style="transform: translateX(-50%) translateY(' + currentY + 'px) scale(' + visualScale + ');">' + currentEmoji + '</span>'; 
+                                    div.onclick = function() { handlePlotClickSelection(index); }; 
+                                }
+                            }
+                        }
+                        div.appendChild(soil); 
+                        farm.appendChild(div);
+                    })(i);
+                }
+            } catch(err) {
+                var debugNode = document.getElementById('debugError');
+                if(debugNode) { debugNode.style.display = 'block'; debugNode.innerText = "UI REDRAW FAIL: " + err.message; }
+            }
+        }
+
+        function buySeed(id) { 
+            var crop = CROP_TYPES[id]; 
+            if (money >= crop.cost && (shopStock[id] || 0) > 0) { 
+                money -= crop.cost; 
+                var updatedStock = shopStock[id] - 1;
+                if(db) db.ref('globalMarketplaceStockRefillCount/' + id).set(updatedStock);
+                seedsBag[id] = (parseInt(seedsBag[id]) || 0) + 1; 
+                triggerSeedPurchaseAudioSFX(); 
+                if (!selectedSeed) selectedSeed = id; 
+                updateUI(); 
+                saveStateSnapshot(); 
+            } 
+        }
+
+        function plant(i) {
+            if (selectedSeed && (parseInt(seedsBag[selectedSeed]) || 0) > 0) {
+                seedsBag[selectedSeed] = (parseInt(seedsBag[selectedSeed]) || 0) - 1; 
+                var type = selectedSeed, baseTime = CROP_TYPES[type].time; 
+                triggerPlantAudioSFX(); 
+                
+                if (CROP_TYPES[type].behavior === 'vine') { 
+                    var randomHeight = 1.5 + (Math.random() * 2.0); 
+                    plots[i] = { type: type, startTime: Date.now(), remainingSecondsTracking: baseTime, height: randomHeight, fruits: [], lastFruitGrowTime: Date.now() + (baseTime * 1000) }; 
+                } else {
+                    var targetKg = 1.0, r = CROP_TYPES[type].rarity;
+                    if (r === 'Common') { targetKg = 1.0 + (Math.random() * 2.0); } 
+                    else if (r === 'Uncommon') { targetKg = 2.0 + (Math.random() * 3.0); }
+                    else if (r === 'Rare') { targetKg = 3.0 + (Math.random() * 4.0); }
+                    else if (r === 'Legendary') { targetKg = 4.0 + (Math.random() * 5.0); }
+                    else if (r === 'Mythical') { targetKg = 5.0 + (Math.random() * 6.0); }
+                    else if (r === 'Astral') { targetKg = 6.0 + (Math.random() * 8.0); }
+                    else if (r === 'Transcendent') { targetKg = 8.0 + (Math.random() * 10.0); }
+                    plots[i] = { type: type, startTime: Date.now(), remainingSecondsTracking: baseTime, targetKg: targetKg, totalGrowthTime: baseTime };
+                }
+                
+                if (activeTutorialStepIdx === 2 && type === 'carrot') { 
+                    setTimeout(function() { plots[i].remainingSecondsTracking = 0; updateUI(); }, 400); 
+                    advanceTutorialScriptStep(); 
+                }
+                if(selectedSeed && (parseInt(seedsBag[selectedSeed]) || 0) <= 0) selectedSeed = null; 
+                updateUI(); 
+                saveStateSnapshot();
+            }
+        }
+
+        function harvestStandardCrop(i, type, kg, event) {
+            var totalGatheredWeight = parseFloat(kg) || 1.0; 
+            if(activeWeatherStackStateMap && activeWeatherStackStateMap.crystal && Math.random() <= 0.3) { 
+                totalGatheredWeight *= 2; 
+                spawnFloatingText("💎 CRYSTAL DOUBLE WEIGHT DROP! ✨", (event && event.clientX) ? event.clientX : window.innerWidth/2, (event && event.clientY) ? event.clientY : window.innerHeight/2); 
+            }
+            inventory[type] = (parseFloat(inventory[type]) || 0) + totalGatheredWeight; 
+            var x = (event && event.clientX) ? event.clientX : window.innerWidth / 2;
+            var y = (event && event.clientY) ? event.clientY : window.innerHeight / 2; 
+            spawnFloatingText('+' + totalGatheredWeight.toFixed(1) + ' KG', x, y); 
+            
+            triggerMaturityAudioSFX(); 
+            plots[i] = null; 
+            if (activeTutorialStepIdx === 4 && type === 'carrot') { advanceTutorialScriptStep(); } 
+            updateUI(); 
+            saveStateSnapshot();
+        }
+
+        function purchaseFieldExpansion(fieldIdx, cost) { 
+            if(money >= cost) { 
+                money -= cost; 
+                unlockedFieldsArray[fieldIdx] = true; 
+                updateLockOverlays(); 
+                triggerSeedPurchaseAudioSFX(); 
+                updateUI(); 
+                saveStateSnapshot(); 
+            } else { 
+                alert("❌ Insufficient Funds for this land plot!"); 
+            } 
+        }
+
+        function checkAndGrowVineFruits(plot) {
+            if (!plot || !plot.fruits || !CROP_TYPES[plot.type]) return;
+            var now = Date.now();
+            var baseTimeMs = CROP_TYPES[plot.type].time * 1000;
+            
+            var dynamicGrowthMultiplierModifier = 1.0;
+            if (activeWeatherStackStateMap.nature) dynamicGrowthMultiplierModifier *= 1.5; 
+            if (activeWeatherStackStateMap.honey && (plot.type === 'starfruit' || plot.type === 'nectarroot')) dynamicGrowthMultiplierModifier *= 2.0;
+            
+            var adjustedTimeMs = baseTimeMs / dynamicGrowthMultiplierModifier;
+
+            if (now - plot.lastFruitGrowTime >= adjustedTimeMs) {
+                if (plot.fruits.length < 3) {
+                    var r = CROP_TYPES[plot.type].rarity;
+                    var baseKg = 1.0;
+                    if (r === 'Common') baseKg = 1.0 + Math.random();
+                    else if (r === 'Rare') baseKg = 2.0 + Math.random();
+                    else if (r === 'Legendary') baseKg = 3.0 + Math.random();
+                    else if (r === 'Mythical') baseKg = 4.0 + Math.random();
+                    else if (r === 'Astral') baseKg = 5.0 + Math.random();
+                    else if (r === 'Transcendent') baseKg = 6.0 + Math.random();
+                    
+                    plot.fruits.push({ kg: baseKg });
+                    plot.lastFruitGrowTime = now;
+                } else {
+                    plot.lastFruitGrowTime = now;
+                }
+            }
+        }
+
+        function openVineInspectionWindow(index) {
+            activeVinePlotIndex = index;
+            renderVineDetailModal();
+            toggleModalEngine(document.getElementById('vineDetailModal'), true);
+        }
+
+        function renderVineDetailModal() {
+            var canvas = document.getElementById('vineGardenCanvas');
+            if(!canvas || activeVinePlotIndex === null) return;
+            var plot = plots[activeVinePlotIndex];
+            if(!plot || !CROP_TYPES[plot.type] || CROP_TYPES[plot.type].behavior !== 'vine') {
+                closeVineInspectionWindow();
+                return;
+            }
+            
+            var crop = CROP_TYPES[plot.type];
+            var vineScale = Math.min(2.5, 0.8 + (plot.height * 0.15));
+            
+            var html = '<div class="view-vine" style="transform: translateX(-50%) scale(' + vineScale + ');">' + crop.vineIcon + '</div>';
+            
+            var positions = [
+                { bottom: '120px', left: '30%' },
+                { bottom: '150px', left: '50%' },
+                { bottom: '110px', left: '70%' }
+            ];
+            
+            for(var i=0; i<plot.fruits.length; i++) {
+                var f = plot.fruits[i];
+                html += '<div class="interactive-fruit" style="bottom:' + positions[i].bottom + '; left:' + positions[i].left + ';" onclick="harvestVineFruit(' + activeVinePlotIndex + ', ' + i + ', event)">' + crop.fruitIcon + '<div class="fruit-weight-label">' + f.kg.toFixed(1) + 'kg</div></div>';
+            }
+            
+            canvas.innerHTML = html;
+        }
+
+        function harvestVineFruit(plotIndex, fruitIndex, event) {
+            var plot = plots[plotIndex];
+            if(!plot || !plot.fruits || !plot.fruits[fruitIndex]) return;
+            
+            var type = plot.type;
+            var f = plot.fruits[fruitIndex];
+            var totalGatheredWeight = parseFloat(f.kg) || 1.0; 
+            
+            if(activeWeatherStackStateMap && activeWeatherStackStateMap.crystal && Math.random() <= 0.3) { 
+                totalGatheredWeight *= 2; 
+                spawnFloatingText("💎 CRYSTAL DOUBLE WEIGHT DROP! ✨", (event && event.clientX) ? event.clientX : window.innerWidth/2, (event && event.clientY) ? event.clientY : window.innerHeight/2); 
+            }
+            
+            inventory[type] = (parseFloat(inventory[type]) || 0) + totalGatheredWeight; 
+            var x = (event && event.clientX) ? event.clientX : window.innerWidth / 2;
+            var y = (event && event.clientY) ? event.clientY : window.innerHeight / 2; 
+            spawnFloatingText('+' + totalGatheredWeight.toFixed(1) + ' KG', x, y); 
+            
+            triggerMaturityAudioSFX(); 
+            
+            plot.fruits.splice(fruitIndex, 1);
+            plot.lastFruitGrowTime = Date.now();
+            
+            saveStateSnapshot();
+            renderVineDetailModal();
+            updateUI();
+            
+            if (event && event.stopPropagation) {
+                event.stopPropagation();
+            }
+        }
+
+        function closeVineInspectionWindow() {
+            activeVinePlotIndex = null;
+            toggleModalEngine(document.getElementById('vineDetailModal'), false);
+        }
+
+        function advanceTutorialScriptStep() {
+            activeTutorialStepIdx++;
+            var overlay = document.getElementById('tutorialOverlay');
+            var bubble = document.getElementById('tutorialBubbleText');
+            var nextBtn = document.getElementById('tutorialNextBtn');
+            var skipBtn = document.getElementById('tutorialSkipBtn');
+            
+            if (!overlay) return;
+            overlay.style.display = 'flex';
+            overlay.classList.remove('interactive-mode');
+            nextBtn.style.display = 'inline-block';
+            if (skipBtn) skipBtn.style.display = 'inline-block';
+
+            if (activeTutorialStepIdx === 0) {
+                bubble.innerHTML = "Howdy partner! Welcome to Garden Venture. I'm Barnaby! Want me to show you the ropes?";
+                nextBtn.innerText = "Yes, Please!";
+            } else if (activeTutorialStepIdx === 1) {
+                seedsBag['carrot'] = (parseInt(seedsBag['carrot']) || 0) + 1;
+                renderInventory();
+                bubble.innerHTML = "I just slipped a <b>Carrot Seed</b> into your bag.<br><br>1. Open your Seeds Bag at the bottom.<br>2. Select the Carrot Seed.<br>3. Tap an empty dirt plot to plant it!";
+                overlay.classList.add('interactive-mode');
+                nextBtn.style.display = 'none';
+                activeTutorialStepIdx = 2; 
+            } else if (activeTutorialStepIdx === 3) {
+                bubble.innerHTML = "Whoa, look at that! My special fertilizer made it grow instantly!<br><br>Tap the grown Carrot to harvest it into your inventory.";
+                overlay.classList.add('interactive-mode');
+                nextBtn.style.display = 'none';
+                activeTutorialStepIdx = 4; 
+            } else if (activeTutorialStepIdx === 5) {
+                bubble.innerHTML = "Fantastic! You can sell your crops to me using the 'Sell' menu to earn money. Buy more seeds from the 'Shop'! Have fun farming!";
+                nextBtn.innerText = "Finish";
+                if(skipBtn) skipBtn.style.display = 'none';
+            } else if (activeTutorialStepIdx >= 6) {
+                skipTutorial();
+            }
+        }
+
+        function skipTutorial() {
+            activeTutorialStepIdx = -1;
+            var overlay = document.getElementById('tutorialOverlay');
+            if (overlay) {
+                overlay.style.display = 'none';
+                overlay.classList.remove('interactive-mode');
+            }
+        }
+        
+        function displayWeatherPopupData() {
+            var emojis = "";
+            var descHtml = "";
+            var count = 0;
+            
+            for (var k in activeWeatherStackStateMap) { 
+                if (k !== 'clear' && activeWeatherStackStateMap[k] && WEATHER_MANIFEST_PROFILES[k]) { 
+                    emojis += WEATHER_MANIFEST_PROFILES[k].emoji; 
+                    descHtml += "<div style='margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #d4beaa; text-align:left;'><b>" + WEATHER_MANIFEST_PROFILES[k].emoji + " " + WEATHER_MANIFEST_PROFILES[k].display + "</b><br><span style='font-weight:600; color:#666;'>" + WEATHER_MANIFEST_PROFILES[k].desc + "</span></div>";
+                    count++;
+                } 
+            }
+            
+            if (count === 0) {
+                document.getElementById('infoTitle').innerHTML = "☀️ Clear Skies";
+                document.getElementById('infoDesc').innerHTML = "Standard growing conditions apply.";
+            } else {
+                document.getElementById('infoTitle').innerHTML = emojis + " Mixed Skies";
+                document.getElementById('infoDesc').innerHTML = descHtml;
+            }
+            
+            document.getElementById('countdownTimerBox').style.display = 'none'; 
+            toggleModalEngine(document.getElementById('infoModal'), true);
+        }
+
+        function triggerSellAll() {
+            try {
+                var totalPayout = 0, soldAnything = false;
+                var tradeWeatherMultiplier = 1.0;
+                
+                if (typeof activeWeatherStackStateMap !== 'undefined' && activeWeatherStackStateMap) {
+                    if (activeWeatherStackStateMap.rainbow || activeWeatherStackStateMap.crystal) {
+                        tradeWeatherMultiplier = 1.3;
+                    }
+                }
+                
+                for(var key in inventory) { 
+                    var amt = parseFloat(inventory[key]) || 0;
+                    if(amt > 0 && CROP_TYPES[key]) { 
+                        var baselineValue = Math.floor(amt * (CROP_TYPES[key].vpk || 1)); 
+                        totalPayout += Math.floor(baselineValue * tradeWeatherMultiplier); 
+                        inventory[key] = 0; 
+                        soldAnything = true; 
+                    } else if (amt > 0 && !CROP_TYPES[key]) {
+                        inventory[key] = 0; 
+                    }
+                }
+                
+                var npcTalk = document.getElementById('npcTalk');
+                
+                if(soldAnything) {
+                    money += totalPayout; 
+                    if (npcTalk) npcTalk.innerText = "Pleasure doing business! Wallet credited with $" + totalPayout + "!";
+                    spawnFloatingText('+$' + totalPayout, window.innerWidth/2, window.innerHeight/2); 
+                    triggerSeedPurchaseAudioSFX(); 
+                } else { 
+                    if (npcTalk) npcTalk.innerText = "Your crop bag is completely empty! Go harvest some grown produce first."; 
+                }
+                
+                updateUI(); 
+                saveStateSnapshot(); 
+            } catch (err) {
+                var debugNode = document.getElementById('debugError');
+                if(debugNode) { debugNode.style.display = 'block'; debugNode.innerText = "SELL ERROR: " + err.message; }
+            }
+        }
+
+        function cycleSeedSelection(dir) {
+            if (typeof seedsBag === 'undefined') return;
+            var availableSeeds = [];
+            for (var key in seedsBag) {
+                if ((parseInt(seedsBag[key]) || 0) > 0) {
+                    availableSeeds.push(key);
+                }
+            }
+            if (availableSeeds.length === 0) {
+                selectedSeed = null;
+                return;
+            }
+            
+            if (selectedSeed === null) {
+                selectedSeed = dir > 0 ? availableSeeds[0] : availableSeeds[availableSeeds.length - 1];
+            } else {
+                var currentIndex = availableSeeds.indexOf(selectedSeed);
+                if (currentIndex === -1) {
+                    selectedSeed = availableSeeds[0];
+                } else {
+                    var nextIndex = (currentIndex + dir + availableSeeds.length) % availableSeeds.length;
+                    selectedSeed = availableSeeds[nextIndex];
+                }
+            }
+            
+            if (shovelModeActive) toggleShovelDemolitionMode();
+            renderInventory();
+        }
+
+        var consoleButtonMappingState = { b: false, x: false, y: false, lb: false, rb: false, up: false, down: false, left: false, right: false };
+        function updateConsoleControllerInputs() {
+            var activeGamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+            var foundGamepad = null;
+            for(var g=0; g<activeGamepads.length; g++) { if(activeGamepads[g]) { foundGamepad = activeGamepads[g]; break; } }
+            if(foundGamepad) {
+                var currentPressB = (foundGamepad.buttons[1] && foundGamepad.buttons[1].pressed) ? true : false; 
+                var currentPressX = (foundGamepad.buttons[2] && foundGamepad.buttons[2].pressed) ? true : false; 
+                var currentPressY = (foundGamepad.buttons[3] && foundGamepad.buttons[3].pressed) ? true : false; 
+                var currentPressLB = (foundGamepad.buttons[4] && foundGamepad.buttons[4].pressed) ? true : false; 
+                var currentPressRB = (foundGamepad.buttons[5] && foundGamepad.buttons[5].pressed) ? true : false; 
+                
+                var currentPressUp = (foundGamepad.buttons[12] && foundGamepad.buttons[12].pressed) ? true : false; 
+                var currentPressDown = (foundGamepad.buttons[13] && foundGamepad.buttons[13].pressed) ? true : false; 
+                var currentPressLeft = (foundGamepad.buttons[14] && foundGamepad.buttons[14].pressed) ? true : false; 
+                var currentPressRight = (foundGamepad.buttons[15] && foundGamepad.buttons[15].pressed) ? true : false; 
+                
+                if(currentPressB && !consoleButtonMappingState.b) {
+                    toggleMerchant(true);
+                    closeVineInspectionWindow(); 
+                }
+                if(currentPressY && !consoleButtonMappingState.y) {
+                    toggleDrawer(); 
+                }
+                if(currentPressX && !consoleButtonMappingState.x) {
+                    if(typeof seedsBag !== 'undefined') {
+                        var firstSeedKey = null;
+                        for(var key in seedsBag) {
+                            if((parseInt(seedsBag[key]) || 0) > 0) {
+                                firstSeedKey = key;
+                                break;
+                            }
+                        }
+                        if(firstSeedKey && window.lastHoveredPlotIndex !== undefined && window.lastHoveredPlotIndex !== null) {
+                            selectedSeed = firstSeedKey;
+                            handlePlotClickSelection(window.lastHoveredPlotIndex);
+                        }
+                    }
+                }
+                
+                if (currentPressLB && !consoleButtonMappingState.lb) {
+                    cycleSeedSelection(-1);
+                }
+                if (currentPressRB && !consoleButtonMappingState.rb) {
+                    cycleSeedSelection(1);
+                }
+                
+                if(currentPressLeft && !consoleButtonMappingState.left) {
+                    scrollField(-1);
+                }
+                if(currentPressRight && !consoleButtonMappingState.right) {
+                    scrollField(1);
+                }
+                if(currentPressUp && !consoleButtonMappingState.up) {
+                    toggleShop(true);
+                }
+                if(currentPressDown && !consoleButtonMappingState.down) {
+                    toggleShop(false);
+                }
+                
+                consoleButtonMappingState.b = currentPressB;
+                consoleButtonMappingState.x = currentPressX;
+                consoleButtonMappingState.y = currentPressY;
+                consoleButtonMappingState.lb = currentPressLB;
+                consoleButtonMappingState.rb = currentPressRB;
+                consoleButtonMappingState.up = currentPressUp;
+                consoleButtonMappingState.down = currentPressDown;
+                consoleButtonMappingState.left = currentPressLeft;
+                consoleButtonMappingState.right = currentPressRight;
+            }
+            requestAnimationFrame(updateConsoleControllerInputs);
+        }
+        requestAnimationFrame(updateConsoleControllerInputs);
+
+        function startSequencedLofiRhythm() {
+            var chordTracks = [[220.00, 261.63, 329.63, 392.00], [146.83, 293.66, 349.23, 440.00], [196.00, 246.94, 293.66, 392.00], [130.81, 261.63, 329.63, 392.00]]; 
+            var drumStepTracker = 0;
+            
+            function playSequencerTick() {
+                if (!audioCtx) return; 
+                var now = audioCtx.currentTime + ((drumStepTracker % 2 === 1) ? (0.03 + Math.random() * 0.02) : (Math.random() * 0.01));
+                if (drumStepTracker === 0) {
+                    var chordNotes = chordTracks[Math.floor(Math.random() * chordTracks.length)]; 
+                    var waveType = 'triangle', lpfFreq = 550, attack = 0.035, decay = 3.6;
+                    
+                    if(activeWeatherStackStateMap.nature) { lpfFreq = 850; waveType = 'sine'; } 
+                    if(activeWeatherStackStateMap.rainbow) { lpfFreq = 1300; attack = 0.06; } 
+                    if(activeWeatherStackStateMap.crystal) { waveType = 'sine'; decay = 0.9; attack = 0.07; } 
+                    if(activeWeatherStackStateMap.honey) { waveType = 'sawtooth'; lpfFreq = 280; decay = 2.0; } 
+                    if(activeWeatherStackStateMap.starfall) { lpfFreq = 700; waveType = 'triangle'; }
+                    
+                    chordNotes.forEach(function(freq) { 
+                        var osc = audioCtx.createOscillator(), gain = audioCtx.createGain(), lpf = audioCtx.createBiquadFilter(); 
+                        osc.connect(lpf); lpf.connect(gain); gain.connect(audioCtx.destination); 
+                        osc.type = waveType; osc.frequency.setValueAtTime(freq, now); lpf.type = 'lowpass'; lpf.frequency.setValueAtTime(lpfFreq, now); 
+                        gain.gain.setValueAtTime(0, now); gain.gain.linearRampToValueAtTime(attack, now + 0.5); gain.gain.exponentialRampToValueAtTime(0.001, now + decay); 
+                        osc.start(now); osc.stop(now + 3.8); 
+                    });
+                }
+                if (drumStepTracker === 0 || drumStepTracker === 4) { 
+                    var kickOsc = audioCtx.createOscillator(), kickGain = audioCtx.createGain(); kickOsc.connect(kickGain); kickGain.connect(audioCtx.destination); 
+                    kickOsc.type = 'sine'; kickOsc.frequency.setValueAtTime(140, now); kickOsc.frequency.exponentialRampToValueAtTime(52, now + 0.1); 
+                    kickGain.gain.setValueAtTime(0, now); kickGain.gain.linearRampToValueAtTime(0.24, now + 0.008); kickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.16); 
+                    kickOsc.start(now); kickOsc.stop(now + 0.18); 
+                }
+                if (drumStepTracker === 2 || drumStepTracker === 6) { 
+                    var bufferSize = audioCtx.sampleRate * 0.12, buffer = audioCtx.createBuffer(1, bufferSize, audioCtx.sampleRate), data = buffer.getChannelData(0); 
+                    for (var i = 0; i < bufferSize; i++) { data[i] = Math.random() * 2 - 1; } 
+                    var noiseSource = audioCtx.createBufferSource(); noiseSource.buffer = buffer; 
+                    var snareFilter = audioCtx.createBiquadFilter(); snareFilter.type = 'bandpass'; snareFilter.frequency.setValueAtTime(1050, now); snareFilter.Q.setValueAtTime(2.0, now); 
+                    var snareGain = audioCtx.createGain(); snareGain.gain.setValueAtTime(0.06, now); snareGain.gain.exponentialRampToValueAtTime(0.002, now + 0.09); 
+                    noiseSource.connect(snareFilter); snareFilter.connect(snareGain); snareGain.connect(audioCtx.destination); 
+                    noiseSource.start(now); noiseSource.stop(now + 0.11); 
+                }
+                if (drumStepTracker % 2 === 0) { 
+                    var hatBufferSize = audioCtx.sampleRate * 0.02, hatBuffer = audioCtx.createBuffer(1, hatBufferSize, audioCtx.sampleRate), hatData = hatBuffer.getChannelData(0); 
+                    for (var j = 0; j < hatBufferSize; j++) { hatData[j] = Math.random() * 2 - 1; } 
+                    var hatSource = audioCtx.createBufferSource(); hatSource.buffer = hatBuffer; 
+                    var hatFilter = audioCtx.createBiquadFilter(); hatFilter.type = 'highpass'; hatFilter.frequency.setValueAtTime(8000, now); 
+                    var hatGain = audioCtx.createGain(), volumeScale = (drumStepTracker % 4 === 0) ? 0.006 : 0.003; 
+                    hatGain.gain.setValueAtTime(volumeScale, now); hatGain.gain.linearRampToValueAtTime(0, now + 0.02); 
+                    hatSource.connect(hatFilter); hatFilter.connect(hatGain); hatGain.connect(audioCtx.destination); 
+                    hatSource.start(now); hatSource.stop(now + 0.03); 
+                }
+                drumStepTracker = (drumStepTracker + 1) % 8; 
+                setTimeout(playSequencerTick, 460); 
+            }
+            playSequencerTick();
+        }
+
+        function triggerPlantAudioSFX() { if (!audioCtx) return; var now = audioCtx.currentTime; var osc = audioCtx.createOscillator(), gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle'; osc.frequency.setValueAtTime(130, now); osc.frequency.exponentialRampToValueAtTime(50, now + 0.12); gain.gain.setValueAtTime(0.12, now); gain.gain.linearRampToValueAtTime(0, now + 0.14); osc.start(now); osc.stop(now + 0.15); }
+        function triggerGrowthStageAudioSFX() { if (!audioCtx) return; var now = audioCtx.currentTime; [260, 390].forEach(function(freq, stepIdx) { var osc = audioCtx.createOscillator(), gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + (stepIdx * 0.05)); gain.gain.setValueAtTime(0.06, now + (stepIdx * 0.05)); gain.gain.linearRampToValueAtTime(0, now + (stepIdx * 0.05) + 0.08); osc.start(now + (stepIdx * 0.05)); osc.stop(now + (stepIdx * 0.05) + 0.09); }); }
+        function triggerMaturityAudioSFX() { if (!audioCtx) return; var now = audioCtx.currentTime; [523.25, 659.25, 783.99, 1046.50].forEach(function(freq, stepIdx) { var osc = audioCtx.createOscillator(), gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'sine'; osc.frequency.setValueAtTime(freq, now + (stepIdx * 0.04)); gain.gain.setValueAtTime(0.08, now + (stepIdx * 0.04)); gain.gain.exponentialRampToValueAtTime(0.005, now + (stepIdx * 0.04) + 0.25); osc.start(now + (stepIdx * 0.04)); osc.stop(now + (stepIdx * 0.04) + 0.28); }); }
+        function triggerSeedPurchaseAudioSFX() { if (!audioCtx) return; var now = audioCtx.currentTime; var osc1 = audioCtx.createOscillator(), osc2 = audioCtx.createOscillator(), gain = audioCtx.createGain(); osc1.connect(gain); osc2.connect(gain); gain.connect(audioCtx.destination); osc1.type = 'sine'; osc1.frequency.setValueAtTime(1100, now); osc2.type = 'sine'; osc2.frequency.setValueAtTime(1450, now); gain.gain.setValueAtTime(0.08, now); gain.gain.linearRampToValueAtTime(0, now + 0.18); osc1.start(now); osc2.start(now); osc1.stop(now + 0.2); osc2.stop(now + 0.2); }
+        function triggerRestockAlertAudioSFX() { if (!audioCtx) return; var now = audioCtx.currentTime; [392.00, 523.25, 587.33].forEach(function(freq, stepIdx) { var osc = audioCtx.createOscillator(), gain = audioCtx.createGain(); osc.connect(gain); gain.connect(audioCtx.destination); osc.type = 'triangle'; osc.frequency.setValueAtTime(freq, now + (stepIdx * 0.06)); gain.gain.setValueAtTime(0.06, now + (stepIdx * 0.06)); gain.gain.linearRampToValueAtTime(0, now + (stepIdx * 0.06) + 0.14); osc.start(now + (stepIdx * 0.06)); osc.stop(now + (stepIdx * 0.06) + 0.15); }); }
+
+        function startGame() {
+            if (typeof gameStarted === 'undefined') window.gameStarted = false;
+            var menu = document.getElementById('startMenu'); 
+            if (menu) menu.style.display = 'none'; 
+            var content = document.getElementById('gameContent'); 
+            if (content) content.style.display = 'block';
+            if (gameStarted) return; 
+            gameStarted = true; 
+            clearTimeout(autoLoadTimer);
+
+            if (db) {
+                safeDatabaseWrite(db.ref('globalSyncWeatherMapParameters'), {
+                    activeWeatherStackStateMap: { clear: true, nature: false, starfall: false, honey: false, rainbow: false, crystal: false },
+                    weatherClockRemainingSeconds: 300
+                });
+            }
+            
+            try {
+                if (window.AudioContext || window.webkitAudioContext) { 
+                    audioCtx = new (window.AudioContext || window.webkitAudioContext)(); 
+                    startSequencedLofiRhythm(); 
+                }
+                var drawerElement = document.getElementById('inventoryDrawer'); 
+                if (drawerElement) drawerElement.style.display = 'block';
+                
+                var savedString = localStorage.getItem('gv_farm_save_data_v8') || localStorage.getItem('gv_farm_save_data_v7');
+                if (savedString) {
+                    var loaded = JSON.parse(savedString);
+                    
+                    if (loaded.money && loaded.money > 200000) {
+                        money = 50;
+                    } else {
+                        money = parseFloat(loaded.money) || 50;
+                    }
+                    
+                    if(loaded.inventory) { for(var k in loaded.inventory) { if(CROP_TYPES[k]) inventory[k] = parseFloat(loaded.inventory[k]) || 0; } }
+                    if(loaded.seedsBag) { for(var j in loaded.seedsBag) { if(CROP_TYPES[j]) seedsBag[j] = parseInt(loaded.seedsBag[j]) || 0; } }
+                    if(loaded.unlockedFieldsArray) unlockedFieldsArray = loaded.unlockedFieldsArray;
+                    
+                    if (loaded.plots && loaded.plots.length > 0) {
+                        plots = [];
+                        for(var p = 0; p < 27; p++) {
+                            var dp = loaded.plots[p];
+                            if (dp && CROP_TYPES[dp.type]) { plots.push(dp); } else { plots.push(null); }
+                        }
+                    }
+                } else {
+                    activeTutorialStepIdx = -1;
+                    setTimeout(advanceTutorialScriptStep, 1000);
+                }
+                
+                var currentEpoch = Date.now();
+                var savedTime = localStorage.getItem('gv_last_timestamp');
+                
+                if(savedTime) {
+                    var totalSecondsOffline = (currentEpoch - parseInt(savedTime)) / 1000; 
+                    plots.forEach(function(plot, index) { 
+                        if(plot && CROP_TYPES[plot.type]) { 
+                            plot.remainingSecondsTracking -= totalSecondsOffline; 
+                            if(plot.remainingSecondsTracking < 0) plot.remainingSecondsTracking = 0; 
+                        } 
+                    });
+                }
+                
+                lastEngineTimestamp = currentEpoch; 
+                updateLockOverlays(); 
+                document.getElementById('fieldPage0').classList.add('active'); 
+                updateWeatherVisualsEngineLayer(); 
+                updateUI();
+            } catch (err) { 
+                var debugNode = document.getElementById('debugError');
+                if(debugNode) { debugNode.style.display = 'block'; debugNode.innerText = "STARTUP FAILURE DETECTED: " + err.message; }
+            }
+        }
+
+        var loadingBar = document.querySelector('.loading-bar'); 
+        if (loadingBar) { loadingBar.addEventListener('animationend', startGame); }
+
+        setInterval(function() {
+            if (typeof gameStarted === 'undefined' || !gameStarted) return; 
+            
+            if(globalStockTimer > 0) { 
+                globalStockTimer--; 
+            } else { 
+                globalStockTimer = 180; 
+                if(isAdminLoggedIn) { executeSpontaneousWeatherShiftCycle(); }
+            } 
+            
+            var sMins = Math.floor(globalStockTimer / 60);
+            var sSecs = globalStockTimer % 60;
+            var timerSpan = document.getElementById('stockTimer');
+            if(timerSpan) timerSpan.innerText = 'Refill: ' + sMins + ':' + (sSecs < 10 ? '0' : '') + sSecs;
+            
+            if (weatherClockRemainingSeconds > 0) {
+                weatherClockRemainingSeconds--;
+            } else {
+                if (isAdminLoggedIn) {
+                    setTimeout(executeSpontaneousWeatherShiftCycle, 10);
+                }
+                weatherClockRemainingSeconds = 300; 
+            }
+            
+            saveStateSnapshot();
+        }, 1000);
+
+        autoLoadTimer = setTimeout(startGame, 4500); 
+        setInterval(updateUI, 100);
+    </script>
+</body>
+</html>
